@@ -127,6 +127,69 @@ export const api = {
       { method: 'PUT', body: JSON.stringify(payload) },
       token
     ),
+  fetchLinkPreviews: (token: string, urls: string[]) =>
+    request<{
+      previews: {
+        url: string;
+        title?: string | null;
+        description?: string | null;
+        image_url?: string | null;
+        site_name?: string | null;
+      }[];
+    }>('/api/link-previews/batch', { method: 'POST', body: JSON.stringify({ urls }) }, token),
+  searchMessages: (token: string, payload: { q: string; serverId?: string; channelId?: string }) => {
+    const params = new URLSearchParams({ q: payload.q });
+    if (payload.serverId) {
+      params.set('serverId', payload.serverId);
+    }
+    if (payload.channelId) {
+      params.set('channelId', payload.channelId);
+    }
+    return request<{
+      results: {
+        id: string;
+        body: string;
+        created_at: string;
+        author_name: string;
+        author_handle: string;
+        channel_name: string;
+        server_name: string;
+      }[];
+    }>(`/api/search/messages?${params.toString()}`, {}, token);
+  },
+  libraryItems: (token: string, serverId: string, channelId?: string) => {
+    const params = new URLSearchParams({ serverId });
+    if (channelId) {
+      params.set('channelId', channelId);
+    }
+    return request<{
+      items: {
+        id: string;
+        item_type: 'url' | 'media';
+        url?: string | null;
+        title?: string | null;
+        description?: string | null;
+        media_url?: string | null;
+        channel_name: string;
+      }[];
+    }>(`/api/library/items?${params.toString()}`, {}, token);
+  },
+  collections: (token: string, serverId: string) =>
+    request<{
+      collections: { id: string; name: string; visibility: 'private' | 'public'; created_at: string }[];
+    }>(`/api/library/collections?serverId=${serverId}`, {}, token),
+  createCollection: (token: string, payload: { serverId: string; name: string; visibility: 'private' | 'public' }) =>
+    request<{ collection: { id: string; name: string; visibility: 'private' | 'public' } }>(
+      '/api/library/collections',
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+  addCollectionItems: (token: string, collectionId: string, libraryItemIds: string[]) =>
+    request<{ added: number }>(
+      `/api/library/collections/${collectionId}/items`,
+      { method: 'POST', body: JSON.stringify({ libraryItemIds }) },
+      token
+    ),
   userCommands: (token: string) =>
     request<{ commands: { id: string; command: string; response_text: string }[] }>('/api/me/commands', {}, token),
   createUserCommand: (token: string, payload: { command: string; responseText: string }) =>

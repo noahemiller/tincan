@@ -44,6 +44,14 @@ type ThreadMessage = {
   attachments: { id: string; mime_type: string; original_name: string; public_url: string }[];
 };
 
+type LinkPreview = {
+  url: string;
+  title?: string | null;
+  description?: string | null;
+  image_url?: string | null;
+  site_name?: string | null;
+};
+
 type Command = {
   id: string;
   command: string;
@@ -51,6 +59,11 @@ type Command = {
 };
 
 const TOKEN_KEY = 'tincan_token';
+
+function extractUrls(text: string) {
+  const matches = text.match(/https?:\/\/[^\s<>"')]+/g) ?? [];
+  return [...new Set(matches)];
+}
 
 export function App() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -80,6 +93,19 @@ export function App() {
   const [threadComposer, setThreadComposer] = useState('');
   const [channelMode, setChannelMode] = useState<'hidden' | 'passive' | 'active'>('passive');
   const [channelSnoozeHours, setChannelSnoozeHours] = useState('0');
+  const [linkPreviews, setLinkPreviews] = useState<Record<string, LinkPreview>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<
+    { id: string; body: string; author_name: string; channel_name: string; created_at: string }[]
+  >([]);
+  const [libraryItems, setLibraryItems] = useState<
+    { id: string; item_type: 'url' | 'media'; url?: string | null; title?: string | null; media_url?: string | null; channel_name: string }[]
+  >([]);
+  const [collections, setCollections] = useState<{ id: string; name: string; visibility: 'private' | 'public' }[]>([]);
+  const [collectionName, setCollectionName] = useState('');
+  const [collectionVisibility, setCollectionVisibility] = useState<'private' | 'public'>('private');
+  const [selectedCollectionId, setSelectedCollectionId] = useState('');
+  const [selectedLibraryItemIds, setSelectedLibraryItemIds] = useState<string[]>([]);
   const [unread, setUnread] = useState<
     {
       channel_id: string;
@@ -112,6 +138,34 @@ export function App() {
     void bootstrap(token);
   }, [token]);
 
+  useEffect(() => {
+    if (!token || messages.length === 0) {
+      return;
+    }
+
+    const urls = [...new Set(messages.flatMap((message) => extractUrls(message.body)))];
+    const missing = urls.filter((url) => !linkPreviews[url]);
+
+    if (missing.length === 0) {
+      return;
+    }
+
+    void (async () => {
+      try {
+        const result = await api.fetchLinkPreviews(token, missing);
+        setLinkPreviews((prev) => {
+          const next = { ...prev };
+          for (const preview of result.previews) {
+            next[preview.url] = preview;
+          }
+          return next;
+        });
+      } catch {
+        // Preview loading failures should not block message rendering.
+      }
+    })();
+  }, [token, messages, linkPreviews]);
+
   async function bootstrap(nextToken: string) {
     try {
       setBusy(true);
@@ -128,6 +182,7 @@ export function App() {
       if (serverResult.servers.length > 0) {
         const firstServer = serverResult.servers[0]!;
         setSelectedServerId(firstServer.id);
+        await loadLibraryAndCollections(nextToken, firstServer.id);
         await loadChannels(nextToken, firstServer.id);
       }
     } catch (cause) {
@@ -149,12 +204,14 @@ export function App() {
       setSelectedChannelId(firstChannel.id);
       setSelectedThreadRootId('');
       setThreadMessages([]);
+      await loadLibraryAndCollections(nextToken, serverId, firstChannel.id);
       await loadMessages(nextToken, firstChannel.id);
     } else {
       setSelectedChannelId('');
       setMessages([]);
       setSelectedThreadRootId('');
       setThreadMessages([]);
+      await loadLibraryAndCollections(nextToken, serverId);
     }
   }
 
@@ -163,6 +220,20 @@ export function App() {
     const preferenceResult = await api.channelPreference(nextToken, channelId);
     setMessages(messageResult.messages);
     setChannelMode(preferenceResult.preference.mode);
+  }
+
+  async function loadLibraryAndCollections(nextToken: string, serverId: string, channelId?: string) {
+    const [libraryResult, collectionResult] = await Promise.all([
+      api.libraryItems(nextToken, serverId, channelId),
+      api.collections(nextToken, serverId)
+    ]);
+
+    setLibraryItems(libraryResult.items);
+    setCollections(collectionResult.collections);
+
+    if (!selectedCollectionId && collectionResult.collections.length > 0) {
+      setSelectedCollectionId(collectionResult.collections[0]!.id);
+    }
   }
 
   async function onAuthSubmit(event: FormEvent<HTMLFormElement>) {
@@ -342,6 +413,68 @@ export function App() {
     }
   }
 
+  async function onSearchMessages(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!token || !searchQuery.trim()) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      const result = await api.searchMessages(token, {
+        q: searchQuery.trim(),
+        serverId: selectedServerId || undefined,
+        channelId: selectedChannelId || undefined
+      });
+      setSearchResults(result.results);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Search failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onCreateCollection(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!token || !selectedServerId || !collectionName.trim()) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      const result = await api.createCollection(token, {
+        serverId: selectedServerId,
+        name: collectionName.trim(),
+        visibility: collectionVisibility
+      });
+      setCollectionName('');
+      await loadLibraryAndCollections(token, selectedServerId, selectedChannelId || undefined);
+      setSelectedCollectionId(result.collection.id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Failed to create collection');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onAddSelectedToCollection() {
+    if (!token || !selectedCollectionId || selectedLibraryItemIds.length === 0) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      await api.addCollectionItems(token, selectedCollectionId, selectedLibraryItemIds);
+      setSelectedLibraryItemIds([]);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Failed to add items to collection');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onSelectServer(serverId: string) {
     if (!token) {
       return;
@@ -359,6 +492,9 @@ export function App() {
     setSelectedChannelId(channelId);
     setSelectedThreadRootId('');
     setThreadMessages([]);
+    if (selectedServerId) {
+      await loadLibraryAndCollections(token, selectedServerId, channelId);
+    }
     await loadMessages(token, channelId);
   }
 
@@ -373,6 +509,14 @@ export function App() {
     setSelectedThreadRootId('');
     setThreadMessages([]);
     setThreadComposer('');
+    setLinkPreviews({});
+    setSearchQuery('');
+    setSearchResults([]);
+    setLibraryItems([]);
+    setCollections([]);
+    setCollectionName('');
+    setSelectedCollectionId('');
+    setSelectedLibraryItemIds([]);
     setUserCommands([]);
     setServerCommands([]);
     setSelectedChannelId('');
@@ -566,6 +710,19 @@ export function App() {
                 <time>{new Date(message.created_at).toLocaleString()}</time>
               </div>
               <p>{message.body}</p>
+              {extractUrls(message.body).length > 0 ? (
+                <div className="link-previews">
+                  {extractUrls(message.body).map((url) => {
+                    const preview = linkPreviews[url];
+                    return (
+                      <a className="preview-card" href={url} key={`${message.id}-${url}`} rel="noreferrer" target="_blank">
+                        <strong>{preview?.title || url}</strong>
+                        {preview?.description ? <span>{preview.description}</span> : null}
+                      </a>
+                    );
+                  })}
+                </div>
+              ) : null}
               {message.attachments.length > 0 ? (
                 <div className="attachments">
                   {message.attachments.map((attachment) =>
@@ -634,6 +791,71 @@ export function App() {
             </li>
           ))}
         </ul>
+        <section className="commands-panel">
+          <h3>Search</h3>
+          <form onSubmit={onSearchMessages}>
+            <input
+              placeholder="Search messages"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+            <button type="submit">Go</button>
+          </form>
+          <div className="search-results">
+            {searchResults.slice(0, 8).map((result) => (
+              <article key={result.id} className="search-hit">
+                <strong>{result.author_name}</strong>
+                <span>{result.channel_name}</span>
+                <p>{result.body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section className="commands-panel">
+          <h3>Library</h3>
+          <form onSubmit={onCreateCollection}>
+            <input
+              placeholder="New collection name"
+              value={collectionName}
+              onChange={(event) => setCollectionName(event.target.value)}
+            />
+            <select
+              value={collectionVisibility}
+              onChange={(event) => setCollectionVisibility(event.target.value as 'private' | 'public')}
+            >
+              <option value="private">Private</option>
+              <option value="public">Public</option>
+            </select>
+            <button type="submit">Create Collection</button>
+          </form>
+          <select value={selectedCollectionId} onChange={(event) => setSelectedCollectionId(event.target.value)}>
+            <option value="">Select collection</option>
+            {collections.map((collection) => (
+              <option key={collection.id} value={collection.id}>
+                {collection.name} ({collection.visibility})
+              </option>
+            ))}
+          </select>
+          <button type="button" onClick={() => void onAddSelectedToCollection()} disabled={!selectedCollectionId || selectedLibraryItemIds.length === 0}>
+            Add Selected
+          </button>
+          <div className="library-list">
+            {libraryItems.slice(0, 12).map((item) => (
+              <label key={item.id} className="library-item">
+                <input
+                  checked={selectedLibraryItemIds.includes(item.id)}
+                  onChange={(event) =>
+                    setSelectedLibraryItemIds((prev) =>
+                      event.target.checked ? [...prev, item.id] : prev.filter((id) => id !== item.id)
+                    )
+                  }
+                  type="checkbox"
+                />
+                <span>{item.title || item.url || item.media_url || 'Untitled item'}</span>
+              </label>
+            ))}
+          </div>
+        </section>
         <section className="commands-panel">
           <h3>My Commands</h3>
           <form onSubmit={onCreateUserCommand}>

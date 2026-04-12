@@ -135,3 +135,63 @@ CREATE TABLE IF NOT EXISTS message_attachments (
 
 ALTER TABLE messages
   ADD COLUMN IF NOT EXISTS thread_root_message_id UUID REFERENCES messages(id) ON DELETE CASCADE;
+
+CREATE TABLE IF NOT EXISTS link_previews (
+  url TEXT PRIMARY KEY,
+  title TEXT,
+  description TEXT,
+  image_url TEXT,
+  site_name TEXT,
+  fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS library_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  server_id UUID NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+  channel_id UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+  source_message_id UUID REFERENCES messages(id) ON DELETE SET NULL,
+  posted_by_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  item_type TEXT NOT NULL,
+  url TEXT,
+  media_item_id UUID REFERENCES media_items(id) ON DELETE SET NULL,
+  title TEXT,
+  description TEXT,
+  taxonomy_terms TEXT[] NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (
+    (item_type = 'url' AND url IS NOT NULL)
+    OR
+    (item_type = 'media' AND media_item_id IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_library_items_server_created_at
+  ON library_items(server_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_library_items_channel_created_at
+  ON library_items(channel_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_library_items_url
+  ON library_items(url);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_library_items_message_url_unique
+  ON library_items(source_message_id, url)
+  WHERE item_type = 'url';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_library_items_message_media_unique
+  ON library_items(source_message_id, media_item_id)
+  WHERE item_type = 'media';
+
+CREATE TABLE IF NOT EXISTS collections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  server_id UUID NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  visibility TEXT NOT NULL DEFAULT 'private',
+  created_by_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (visibility IN ('private', 'public'))
+);
+
+CREATE TABLE IF NOT EXISTS collection_items (
+  collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  library_item_id UUID NOT NULL REFERENCES library_items(id) ON DELETE CASCADE,
+  added_by_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (collection_id, library_item_id)
+);

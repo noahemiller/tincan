@@ -35,3 +35,19 @@
 - `GET /api/unread`
 - `GET /api/channels/:channelId/preferences`
 - `PUT /api/channels/:channelId/preferences`
+
+## Search
+
+- `GET /api/search/messages?q=...&serverId=...&channelId=...`
+
+## Link Previews
+
+- `POST /api/link-previews/batch`
+
+## Library + Collections
+
+- `GET /api/library/items?serverId=...&channelId=...`
+- `GET /api/library/collections?serverId=...`
+- `POST /api/library/collections`
+- `GET /api/library/collections/:collectionId/items`
+- `POST /api/library/collections/:collectionId/items`

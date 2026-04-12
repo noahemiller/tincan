@@ -2,10 +2,10 @@
 
 ## Priority sequence
 
-1. Add thread model and thread timeline endpoints
-2. Add OGP enrichment jobs and attachment/link cards
-3. Add search endpoint and indexed strategy (Postgres FTS first)
-4. Add library + collections baseline from uploaded/linked content
+1. Improve search relevance and add dedicated Postgres full-text indexes
+2. Add OGP refresh/expiry jobs and failure retry strategy
+3. Add collection item curation UX (bulk select, remove, reorder, filters)
+4. Add library taxonomy editing and validated-vs-suggested metadata states
 
 ## Hardening
 

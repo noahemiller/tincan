@@ -18,14 +18,16 @@ This scope was selected to maximize a usable private-community chat baseline qui
 10. Per-channel read watermark endpoint + unread summary query
 11. Channel preference mode + optional snooze (`hidden`, `passive`, `active`)
 12. Docker-first local deployment
+13. Message search endpoint + UI
+14. Link preview extraction and preview metadata persistence
+15. Library items and collections baseline (API + minimal UI)
 
 ## Deferred
 
-1. OGP scraping and rich link cards
-2. Library/gallery UI and metadata pipelines
-3. Full-text search
-4. AI librarian metadata generation
-5. Federation and module marketplace
+1. Advanced relevance tuning and ranking for search
+2. Library/gallery advanced UI and metadata pipelines
+3. AI librarian metadata generation
+4. Federation and module marketplace
 
 ## Rationale
 

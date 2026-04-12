@@ -13,5 +13,8 @@ All notable changes to this project are tracked here.
 - Added thread endpoints and web thread panel
 - Added file upload pipeline and message attachments
 - Added channel notification preference APIs and UI controls
+- Added message search endpoint and web search panel
+- Added OGP-style link preview fetching and inline message preview cards
+- Added library items + collections API baseline and web collection tooling
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation

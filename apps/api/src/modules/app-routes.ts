@@ -55,6 +55,20 @@ const createCommandSchema = z.object({
   responseText: z.string().min(1).max(4000)
 });
 
+const previewBatchSchema = z.object({
+  urls: z.array(z.string().url()).max(20)
+});
+
+const createCollectionSchema = z.object({
+  serverId: z.string().uuid(),
+  name: z.string().min(1).max(80),
+  visibility: z.enum(['private', 'public']).default('private')
+});
+
+const addCollectionItemsSchema = z.object({
+  libraryItemIds: z.array(z.string().uuid()).min(1).max(100)
+});
+
 async function requireServerMembership(userId: string, serverId: string) {
   const membership = await pool.query('SELECT 1 FROM memberships WHERE user_id = $1 AND server_id = $2', [userId, serverId]);
   return membership.rowCount !== 0;
@@ -71,6 +85,121 @@ async function loadChannel(channelId: string) {
   );
 
   return channelResult.rowCount ? channelResult.rows[0] : null;
+}
+
+function extractUrls(text: string) {
+  const matches = text.match(/https?:\/\/[^\s<>"')]+/g) ?? [];
+  return [...new Set(matches)].slice(0, 10);
+}
+
+function pickMeta(content: string, key: string) {
+  const regex = new RegExp(`<meta[^>]+(?:property|name)=["']${key}["'][^>]+content=["']([^"']+)["'][^>]*>`, 'i');
+  const match = content.match(regex);
+  return match?.[1] ?? null;
+}
+
+function pickTitle(content: string) {
+  const match = content.match(/<title[^>]*>([^<]+)<\/title>/i);
+  return match?.[1]?.trim() ?? null;
+}
+
+async function upsertLinkPreview(url: string) {
+  const existing = await pool.query('SELECT url, title, description, image_url, site_name, fetched_at FROM link_previews WHERE url = $1', [url]);
+
+  if (existing.rowCount && existing.rowCount > 0) {
+    return existing.rows[0];
+  }
+
+  let preview = {
+    url,
+    title: null as string | null,
+    description: null as string | null,
+    image_url: null as string | null,
+    site_name: null as string | null
+  };
+
+  try {
+    const response = await fetch(url, {
+      redirect: 'follow',
+      headers: { 'user-agent': 'TincanBot/0.1 (+https://tincan.local)' },
+      signal: AbortSignal.timeout(5000)
+    });
+
+    if (response.ok) {
+      const contentType = response.headers.get('content-type') ?? '';
+
+      if (contentType.includes('text/html')) {
+        const html = await response.text();
+        preview = {
+          url,
+          title: pickMeta(html, 'og:title') ?? pickTitle(html),
+          description: pickMeta(html, 'og:description') ?? pickMeta(html, 'description'),
+          image_url: pickMeta(html, 'og:image'),
+          site_name: pickMeta(html, 'og:site_name')
+        };
+      }
+    }
+  } catch {
+    // Best-effort preview fetch; store minimal row even on failure.
+  }
+
+  const stored = await pool.query(
+    `
+    INSERT INTO link_previews (url, title, description, image_url, site_name, fetched_at)
+    VALUES ($1, $2, $3, $4, $5, NOW())
+    ON CONFLICT (url)
+    DO UPDATE SET
+      title = EXCLUDED.title,
+      description = EXCLUDED.description,
+      image_url = EXCLUDED.image_url,
+      site_name = EXCLUDED.site_name,
+      fetched_at = NOW()
+    RETURNING url, title, description, image_url, site_name, fetched_at
+    `,
+    [preview.url, preview.title, preview.description, preview.image_url, preview.site_name]
+  );
+
+  return stored.rows[0];
+}
+
+async function ingestLibraryForMessage(params: {
+  serverId: string;
+  channelId: string;
+  messageId: string;
+  userId: string;
+  body: string;
+  mediaItemIds?: string[];
+}) {
+  const urls = extractUrls(params.body);
+
+  for (const url of urls) {
+    const preview = await upsertLinkPreview(url);
+    await pool.query(
+      `
+      INSERT INTO library_items (
+        server_id, channel_id, source_message_id, posted_by_user_id, item_type, url, title, description
+      )
+      VALUES ($1, $2, $3, $4, 'url', $5, $6, $7)
+      ON CONFLICT DO NOTHING
+      `,
+      [params.serverId, params.channelId, params.messageId, params.userId, url, preview.title, preview.description]
+    );
+  }
+
+  if (params.mediaItemIds && params.mediaItemIds.length > 0) {
+    for (const mediaItemId of params.mediaItemIds) {
+      await pool.query(
+        `
+        INSERT INTO library_items (
+          server_id, channel_id, source_message_id, posted_by_user_id, item_type, media_item_id, title
+        )
+        VALUES ($1, $2, $3, $4, 'media', $5, 'Attachment')
+        ON CONFLICT DO NOTHING
+        `,
+        [params.serverId, params.channelId, params.messageId, params.userId, mediaItemId]
+      );
+    }
+  }
 }
 
 export async function registerAppRoutes(app: FastifyInstance) {
@@ -449,6 +578,251 @@ export async function registerAppRoutes(app: FastifyInstance) {
     }
   });
 
+  app.post('/api/link-previews/batch', { preHandler: authGuard }, async (request, reply) => {
+    const parsed = previewBatchSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const previews = [];
+
+    for (const url of parsed.data.urls) {
+      const preview = await upsertLinkPreview(url);
+      previews.push(preview);
+    }
+
+    return { previews };
+  });
+
+  app.get('/api/search/messages', { preHandler: authGuard }, async (request, reply) => {
+    const userId = request.authUser!.userId;
+    const query = request.query as { q?: string; serverId?: string; channelId?: string; limit?: string };
+    const q = (query.q ?? '').trim();
+
+    if (q.length < 2) {
+      return reply.code(400).send({ error: 'q must be at least 2 characters' });
+    }
+
+    const limit = Math.min(Number(query.limit ?? 30), 100);
+    const serverId = query.serverId ?? null;
+    const channelId = query.channelId ?? null;
+
+    const result = await pool.query(
+      `
+      SELECT m.id, m.server_id, m.channel_id, m.author_user_id, m.body, m.created_at,
+             u.name AS author_name, u.handle AS author_handle,
+             c.name AS channel_name, s.name AS server_name
+      FROM messages m
+      JOIN users u ON u.id = m.author_user_id
+      JOIN channels c ON c.id = m.channel_id
+      JOIN servers s ON s.id = m.server_id
+      JOIN memberships ms ON ms.server_id = m.server_id AND ms.user_id = $1
+      WHERE m.body ILIKE '%' || $2 || '%'
+        AND ($3::uuid IS NULL OR m.server_id = $3::uuid)
+        AND ($4::uuid IS NULL OR m.channel_id = $4::uuid)
+      ORDER BY m.created_at DESC
+      LIMIT $5
+      `,
+      [userId, q, serverId, channelId, limit]
+    );
+
+    return { results: result.rows };
+  });
+
+  app.get('/api/library/items', { preHandler: authGuard }, async (request, reply) => {
+    const userId = request.authUser!.userId;
+    const query = request.query as { serverId?: string; channelId?: string; limit?: string };
+    const limit = Math.min(Number(query.limit ?? 50), 100);
+
+    if (!query.serverId) {
+      return reply.code(400).send({ error: 'serverId is required' });
+    }
+
+    const isMember = await requireServerMembership(userId, query.serverId);
+
+    if (!isMember) {
+      return reply.code(403).send({ error: 'Not a server member' });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT li.id, li.item_type, li.url, li.title, li.description, li.taxonomy_terms, li.created_at,
+             li.channel_id, c.name AS channel_name,
+             li.posted_by_user_id, u.handle AS posted_by_handle,
+             mi.public_url AS media_url,
+             lp.title AS preview_title, lp.description AS preview_description, lp.image_url AS preview_image_url
+      FROM library_items li
+      JOIN channels c ON c.id = li.channel_id
+      JOIN users u ON u.id = li.posted_by_user_id
+      LEFT JOIN media_items mi ON mi.id = li.media_item_id
+      LEFT JOIN link_previews lp ON lp.url = li.url
+      WHERE li.server_id = $1
+        AND ($2::uuid IS NULL OR li.channel_id = $2::uuid)
+      ORDER BY li.created_at DESC
+      LIMIT $3
+      `,
+      [query.serverId, query.channelId ?? null, limit]
+    );
+
+    return { items: result.rows };
+  });
+
+  app.get('/api/library/collections', { preHandler: authGuard }, async (request, reply) => {
+    const userId = request.authUser!.userId;
+    const query = request.query as { serverId?: string };
+
+    if (!query.serverId) {
+      return reply.code(400).send({ error: 'serverId is required' });
+    }
+
+    const isMember = await requireServerMembership(userId, query.serverId);
+
+    if (!isMember) {
+      return reply.code(403).send({ error: 'Not a server member' });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT c.id, c.server_id, c.name, c.visibility, c.created_by_user_id, c.created_at
+      FROM collections c
+      WHERE c.server_id = $1
+        AND (c.visibility = 'public' OR c.created_by_user_id = $2)
+      ORDER BY c.created_at DESC
+      `,
+      [query.serverId, userId]
+    );
+
+    return { collections: result.rows };
+  });
+
+  app.post('/api/library/collections', { preHandler: authGuard }, async (request, reply) => {
+    const userId = request.authUser!.userId;
+    const parsed = createCollectionSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const isMember = await requireServerMembership(userId, parsed.data.serverId);
+
+    if (!isMember) {
+      return reply.code(403).send({ error: 'Not a server member' });
+    }
+
+    const result = await pool.query(
+      `
+      INSERT INTO collections (server_id, name, visibility, created_by_user_id)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, server_id, name, visibility, created_by_user_id, created_at
+      `,
+      [parsed.data.serverId, parsed.data.name, parsed.data.visibility, userId]
+    );
+
+    return reply.code(201).send({ collection: result.rows[0] });
+  });
+
+  app.get('/api/library/collections/:collectionId/items', { preHandler: authGuard }, async (request, reply) => {
+    const params = request.params as { collectionId: string };
+    const userId = request.authUser!.userId;
+
+    const collectionResult = await pool.query(
+      `
+      SELECT id, server_id, visibility, created_by_user_id
+      FROM collections
+      WHERE id = $1
+      `,
+      [params.collectionId]
+    );
+
+    if (collectionResult.rowCount === 0) {
+      return reply.code(404).send({ error: 'Collection not found' });
+    }
+
+    const collection = collectionResult.rows[0];
+    const isMember = await requireServerMembership(userId, collection.server_id);
+
+    if (!isMember) {
+      return reply.code(403).send({ error: 'Not a server member' });
+    }
+
+    if (collection.visibility === 'private' && collection.created_by_user_id !== userId) {
+      return reply.code(403).send({ error: 'Collection is private' });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT li.id, li.item_type, li.url, li.title, li.description, li.taxonomy_terms, li.created_at,
+             mi.public_url AS media_url
+      FROM collection_items ci
+      JOIN library_items li ON li.id = ci.library_item_id
+      LEFT JOIN media_items mi ON mi.id = li.media_item_id
+      WHERE ci.collection_id = $1
+      ORDER BY ci.created_at DESC
+      `,
+      [params.collectionId]
+    );
+
+    return { items: result.rows };
+  });
+
+  app.post('/api/library/collections/:collectionId/items', { preHandler: authGuard }, async (request, reply) => {
+    const params = request.params as { collectionId: string };
+    const parsed = addCollectionItemsSchema.safeParse(request.body);
+    const userId = request.authUser!.userId;
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const collectionResult = await pool.query(
+      `
+      SELECT id, server_id, visibility, created_by_user_id
+      FROM collections
+      WHERE id = $1
+      `,
+      [params.collectionId]
+    );
+
+    if (collectionResult.rowCount === 0) {
+      return reply.code(404).send({ error: 'Collection not found' });
+    }
+
+    const collection = collectionResult.rows[0];
+    const isMember = await requireServerMembership(userId, collection.server_id);
+
+    if (!isMember) {
+      return reply.code(403).send({ error: 'Not a server member' });
+    }
+
+    if (collection.visibility === 'private' && collection.created_by_user_id !== userId) {
+      return reply.code(403).send({ error: 'Collection is private' });
+    }
+
+    const validItems = await pool.query(
+      `
+      SELECT id
+      FROM library_items
+      WHERE server_id = $1
+        AND id = ANY($2::uuid[])
+      `,
+      [collection.server_id, parsed.data.libraryItemIds]
+    );
+
+    for (const item of validItems.rows) {
+      await pool.query(
+        `
+        INSERT INTO collection_items (collection_id, library_item_id, added_by_user_id)
+        VALUES ($1, $2, $3)
+        ON CONFLICT DO NOTHING
+        `,
+        [params.collectionId, item.id, userId]
+      );
+    }
+
+    return { added: validItems.rows.length };
+  });
+
   app.get('/api/channels/:channelId/messages', { preHandler: authGuard }, async (request, reply) => {
     const params = request.params as { channelId: string };
     const query = request.query as { limit?: string; before?: string };
@@ -607,6 +981,8 @@ export async function registerAppRoutes(app: FastifyInstance) {
       [channel.server_id, params.channelId, userId, finalBody, parsed.data.replyToMessageId ?? null]
     );
 
+    let attachedMediaIds: string[] = [];
+
     if (parsed.data.mediaItemIds && parsed.data.mediaItemIds.length > 0) {
       const validMedia = await pool.query(
         `
@@ -620,6 +996,7 @@ export async function registerAppRoutes(app: FastifyInstance) {
       );
 
       if ((validMedia.rowCount ?? 0) > 0) {
+        attachedMediaIds = validMedia.rows.map((row) => row.id as string);
         for (const mediaRow of validMedia.rows) {
           await pool.query(
             `
@@ -632,6 +1009,15 @@ export async function registerAppRoutes(app: FastifyInstance) {
         }
       }
     }
+
+    await ingestLibraryForMessage({
+      serverId: channel.server_id,
+      channelId: params.channelId,
+      messageId: result.rows[0].id,
+      userId,
+      body: finalBody,
+      mediaItemIds: attachedMediaIds
+    });
 
     return reply.code(201).send({ message: result.rows[0] });
   });
@@ -733,6 +1119,8 @@ export async function registerAppRoutes(app: FastifyInstance) {
       [rootMessage.server_id, rootMessage.channel_id, userId, parsed.data.body, params.messageId, rootMessageId]
     );
 
+    let attachedMediaIds: string[] = [];
+
     if (parsed.data.mediaItemIds && parsed.data.mediaItemIds.length > 0) {
       const validMedia = await pool.query(
         `
@@ -745,6 +1133,8 @@ export async function registerAppRoutes(app: FastifyInstance) {
         [rootMessage.channel_id, parsed.data.mediaItemIds, userId]
       );
 
+      attachedMediaIds = validMedia.rows.map((row) => row.id as string);
+
       for (const mediaRow of validMedia.rows) {
         await pool.query(
           `
@@ -756,6 +1146,15 @@ export async function registerAppRoutes(app: FastifyInstance) {
         );
       }
     }
+
+    await ingestLibraryForMessage({
+      serverId: rootMessage.server_id,
+      channelId: rootMessage.channel_id,
+      messageId: inserted.rows[0].id,
+      userId,
+      body: parsed.data.body,
+      mediaItemIds: attachedMediaIds
+    });
 
     return reply.code(201).send({ message: inserted.rows[0] });
   });

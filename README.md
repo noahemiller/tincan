@@ -57,6 +57,13 @@ Implemented now:
 - `GET /api/unread`
 - `GET /api/channels/:channelId/preferences`
 - `PUT /api/channels/:channelId/preferences`
+- `GET /api/search/messages`
+- `POST /api/link-previews/batch`
+- `GET /api/library/items`
+- `GET /api/library/collections`
+- `POST /api/library/collections`
+- `GET /api/library/collections/:collectionId/items`
+- `POST /api/library/collections/:collectionId/items`
 
 ## Run locally
 

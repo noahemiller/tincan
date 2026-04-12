@@ -216,6 +216,28 @@ button.ghost {
   gap: 0.45rem;
 }
 
+.link-previews {
+  margin-top: 0.55rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.preview-card {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(62, 123, 110, 0.3);
+  background: rgba(62, 123, 110, 0.1);
+  border-radius: 10px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.preview-card span {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
 .attachments img {
   width: 140px;
   height: 100px;
@@ -330,6 +352,48 @@ button.ghost {
 .thread-message p {
   margin: 0.25rem 0 0;
   font-size: 0.9rem;
+}
+
+.search-results {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+.search-hit {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.4rem;
+  background: rgba(255, 255, 255, 0.7);
+  display: grid;
+  gap: 0.15rem;
+}
+
+.search-hit span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.search-hit p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.library-list {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  max-height: 170px;
+  overflow-y: auto;
+}
+
+.library-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.45rem;
+  align-items: center;
+  font-size: 0.82rem;
+  color: var(--text);
 }
 
 .error {
