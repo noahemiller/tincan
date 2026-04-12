@@ -47,5 +47,6 @@ All notable changes to this project are tracked here.
 - Updated OGP thumbnails to preserve original image aspect ratio at fixed height (no crop)
 - Expanded link cards to show title, description, and source URL
 - Changed OGP card layout to thumbnail-left/text-right and reduced thumbnail height to 105px
+- Added Colorbox-style image lightbox for chat attachments (centered modal with gallery navigation)
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation

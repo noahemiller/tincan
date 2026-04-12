@@ -100,6 +100,7 @@ export function App() {
   const [centerPane, setCenterPane] = useState<'chat' | 'library'>('chat');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [leftRailTab, setLeftRailTab] = useState<'servers' | 'dms' | 'channels'>('servers');
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [linkPreviews, setLinkPreviews] = useState<Record<string, LinkPreview>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<
@@ -156,6 +157,20 @@ export function App() {
     [channels, showUnreadOnly, unreadCountByChannel]
   );
 
+  const galleryImages = useMemo(
+    () =>
+      messages.flatMap((message) =>
+        message.attachments
+          .filter((attachment) => attachment.mime_type.startsWith('image/'))
+          .map((attachment) => ({
+            ...attachment,
+            messageAuthor: message.author_name,
+            messageCreatedAt: message.created_at
+          }))
+      ),
+    [messages]
+  );
+
   useEffect(() => {
     if (!token) {
       return;
@@ -191,6 +206,47 @@ export function App() {
       }
     })();
   }, [token, messages, linkPreviews]);
+
+  useEffect(() => {
+    if (lightboxIndex === null) {
+      return;
+    }
+
+    if (galleryImages.length === 0 || lightboxIndex >= galleryImages.length) {
+      setLightboxIndex(null);
+    }
+  }, [galleryImages, lightboxIndex]);
+
+  useEffect(() => {
+    if (lightboxIndex === null || galleryImages.length === 0) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setLightboxIndex(null);
+      }
+      if (event.key === 'ArrowLeft') {
+        setLightboxIndex((prev) => {
+          if (prev === null) {
+            return prev;
+          }
+          return (prev - 1 + galleryImages.length) % galleryImages.length;
+        });
+      }
+      if (event.key === 'ArrowRight') {
+        setLightboxIndex((prev) => {
+          if (prev === null) {
+            return prev;
+          }
+          return (prev + 1) % galleryImages.length;
+        });
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [lightboxIndex, galleryImages.length]);
 
   async function bootstrap(nextToken: string) {
     try {
@@ -713,6 +769,13 @@ export function App() {
     }
   }
 
+  function onOpenLightbox(attachmentId: string) {
+    const index = galleryImages.findIndex((image) => image.id === attachmentId);
+    if (index >= 0) {
+      setLightboxIndex(index);
+    }
+  }
+
   if (!token || !user) {
     return (
       <main className="auth-shell">
@@ -1053,7 +1116,15 @@ export function App() {
                 <div className="attachments">
                   {message.attachments.map((attachment) =>
                     attachment.mime_type.startsWith('image/') ? (
-                      <img key={attachment.id} src={attachment.public_url} alt={attachment.original_name} />
+                      <button
+                        aria-label={`Open image ${attachment.original_name}`}
+                        className="attachment-image"
+                        key={attachment.id}
+                        onClick={() => onOpenLightbox(attachment.id)}
+                        type="button"
+                      >
+                        <img src={attachment.public_url} alt={attachment.original_name} />
+                      </button>
                     ) : (
                       <a key={attachment.id} href={attachment.public_url} target="_blank" rel="noreferrer">
                         {attachment.original_name}
@@ -1233,6 +1304,63 @@ export function App() {
           </details>
         ) : null}
       </aside>
+
+      {lightboxIndex !== null && galleryImages[lightboxIndex] ? (
+        <div className="lightbox-overlay" onClick={() => setLightboxIndex(null)}>
+          <div className="lightbox-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="lightbox-header">
+              <div>
+                <strong>{galleryImages[lightboxIndex].original_name}</strong>
+                <p>
+                  {galleryImages[lightboxIndex].messageAuthor} ·{' '}
+                  {new Date(galleryImages[lightboxIndex].messageCreatedAt).toLocaleString()}
+                </p>
+              </div>
+              <button className="ghost mini" onClick={() => setLightboxIndex(null)} type="button">
+                Close
+              </button>
+            </div>
+            <div className="lightbox-stage">
+              {galleryImages.length > 1 ? (
+                <button
+                  aria-label="Previous image"
+                  className="ghost mini lightbox-nav"
+                  onClick={() =>
+                    setLightboxIndex((prev) => (prev === null ? prev : (prev - 1 + galleryImages.length) % galleryImages.length))
+                  }
+                  type="button"
+                >
+                  ‹
+                </button>
+              ) : (
+                <span />
+              )}
+              <img
+                className="lightbox-image"
+                src={galleryImages[lightboxIndex].public_url}
+                alt={galleryImages[lightboxIndex].original_name}
+              />
+              {galleryImages.length > 1 ? (
+                <button
+                  aria-label="Next image"
+                  className="ghost mini lightbox-nav"
+                  onClick={() => setLightboxIndex((prev) => (prev === null ? prev : (prev + 1) % galleryImages.length))}
+                  type="button"
+                >
+                  ›
+                </button>
+              ) : (
+                <span />
+              )}
+            </div>
+            {galleryImages.length > 1 ? (
+              <p className="lightbox-index">
+                {lightboxIndex + 1} / {galleryImages.length}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {error ? <pre className="error floating">{error}</pre> : null}
     </main>
