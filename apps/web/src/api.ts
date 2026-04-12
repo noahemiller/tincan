@@ -68,6 +68,26 @@ export const api = {
       { method: 'POST', body: JSON.stringify(payload) },
       token
     ),
+  userCommands: (token: string) =>
+    request<{ commands: { id: string; command: string; response_text: string }[] }>('/api/me/commands', {}, token),
+  createUserCommand: (token: string, payload: { command: string; responseText: string }) =>
+    request<{ command: { id: string; command: string; response_text: string } }>(
+      '/api/me/commands',
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+  serverCommands: (token: string, serverId: string) =>
+    request<{ commands: { id: string; command: string; response_text: string }[] }>(
+      `/api/servers/${serverId}/commands`,
+      {},
+      token
+    ),
+  createServerCommand: (token: string, serverId: string, payload: { command: string; responseText: string }) =>
+    request<{ command: { id: string; command: string; response_text: string } }>(
+      `/api/servers/${serverId}/commands`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
   unread: (token: string) =>
     request<{
       unread: {

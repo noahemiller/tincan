@@ -3,10 +3,9 @@
 ## Priority sequence
 
 1. Add thread model and thread timeline endpoints
-2. Add slash command runtime and user/server custom commands
-3. Add media uploads (S3-compatible object storage) and OGP enrichment jobs
-4. Add channel notification mode APIs + UI (hidden/passive/active + temporary snooze)
-5. Add search endpoint and indexed strategy (Postgres FTS first)
+2. Add media uploads (S3-compatible object storage) and OGP enrichment jobs
+3. Add channel notification mode APIs + UI (hidden/passive/active + temporary snooze)
+4. Add search endpoint and indexed strategy (Postgres FTS first)
 
 ## Hardening
 

@@ -80,3 +80,27 @@ CREATE INDEX IF NOT EXISTS idx_messages_channel_created_at
 
 CREATE INDEX IF NOT EXISTS idx_messages_server_created_at
   ON messages(server_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS custom_commands (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  scope TEXT NOT NULL,
+  server_id UUID REFERENCES servers(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  command TEXT NOT NULL,
+  response_text TEXT NOT NULL,
+  created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (
+    (scope = 'server' AND server_id IS NOT NULL AND user_id IS NULL)
+    OR
+    (scope = 'user' AND user_id IS NOT NULL AND server_id IS NULL)
+  )
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_commands_server_unique
+  ON custom_commands(server_id, command)
+  WHERE scope = 'server';
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_commands_user_unique
+  ON custom_commands(user_id, command)
+  WHERE scope = 'user';

@@ -27,6 +27,16 @@ const toggleReactionSchema = z.object({
   emoji: z.string().min(1).max(20)
 });
 
+const createCommandSchema = z.object({
+  command: z
+    .string()
+    .min(1)
+    .max(32)
+    .transform((value) => value.trim().toLowerCase().replace(/^\//, ''))
+    .refine((value) => /^[a-z0-9_-]+$/.test(value), 'Command can only use a-z, 0-9, underscore, and dash'),
+  responseText: z.string().min(1).max(4000)
+});
+
 export async function registerAppRoutes(app: FastifyInstance) {
   app.get('/api/health', async () => ({ status: 'ok' }));
 
@@ -180,6 +190,110 @@ export async function registerAppRoutes(app: FastifyInstance) {
     }
   });
 
+  app.get('/api/servers/:serverId/commands', { preHandler: authGuard }, async (request, reply) => {
+    const params = request.params as { serverId: string };
+    const userId = request.authUser!.userId;
+
+    const membership = await pool.query(
+      'SELECT 1 FROM memberships WHERE user_id = $1 AND server_id = $2',
+      [userId, params.serverId]
+    );
+
+    if (membership.rowCount === 0) {
+      return reply.code(403).send({ error: 'Not a server member' });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT id, command, response_text, created_by, created_at
+      FROM custom_commands
+      WHERE scope = 'server' AND server_id = $1
+      ORDER BY command ASC
+      `,
+      [params.serverId]
+    );
+
+    return { commands: result.rows };
+  });
+
+  app.post('/api/servers/:serverId/commands', { preHandler: authGuard }, async (request, reply) => {
+    const params = request.params as { serverId: string };
+    const parsed = createCommandSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const userId = request.authUser!.userId;
+
+    const membership = await pool.query(
+      'SELECT role FROM memberships WHERE user_id = $1 AND server_id = $2',
+      [userId, params.serverId]
+    );
+
+    if (membership.rowCount === 0) {
+      return reply.code(403).send({ error: 'Not a server member' });
+    }
+
+    try {
+      const result = await pool.query(
+        `
+        INSERT INTO custom_commands (scope, server_id, command, response_text, created_by)
+        VALUES ('server', $1, $2, $3, $4)
+        RETURNING id, command, response_text, created_by, created_at
+        `,
+        [params.serverId, parsed.data.command, parsed.data.responseText, userId]
+      );
+
+      return reply.code(201).send({ command: result.rows[0] });
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(409).send({ error: 'Command already exists in this server' });
+    }
+  });
+
+  app.get('/api/me/commands', { preHandler: authGuard }, async (request) => {
+    const userId = request.authUser!.userId;
+
+    const result = await pool.query(
+      `
+      SELECT id, command, response_text, created_at
+      FROM custom_commands
+      WHERE scope = 'user' AND user_id = $1
+      ORDER BY command ASC
+      `,
+      [userId]
+    );
+
+    return { commands: result.rows };
+  });
+
+  app.post('/api/me/commands', { preHandler: authGuard }, async (request, reply) => {
+    const parsed = createCommandSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const userId = request.authUser!.userId;
+
+    try {
+      const result = await pool.query(
+        `
+        INSERT INTO custom_commands (scope, user_id, command, response_text, created_by)
+        VALUES ('user', $1, $2, $3, $1)
+        RETURNING id, command, response_text, created_at
+        `,
+        [userId, parsed.data.command, parsed.data.responseText]
+      );
+
+      return reply.code(201).send({ command: result.rows[0] });
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(409).send({ error: 'You already have this command' });
+    }
+  });
+
   app.get('/api/channels/:channelId/messages', { preHandler: authGuard }, async (request, reply) => {
     const params = request.params as { channelId: string };
     const query = request.query as { limit?: string; before?: string };
@@ -280,13 +394,40 @@ export async function registerAppRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: 'Not a server member' });
     }
 
+    let finalBody = parsed.data.body;
+
+    if (finalBody.startsWith('/')) {
+      const [rawCommand, ...argParts] = finalBody.trim().split(/\s+/);
+      const commandName = rawCommand.replace(/^\//, '').toLowerCase();
+      const argString = argParts.join(' ');
+
+      const commandLookup = await pool.query(
+        `
+        SELECT response_text
+        FROM custom_commands
+        WHERE
+          (scope = 'user' AND user_id = $1 AND command = $2)
+          OR
+          (scope = 'server' AND server_id = $3 AND command = $2)
+        ORDER BY
+          CASE WHEN scope = 'user' THEN 0 ELSE 1 END
+        LIMIT 1
+        `,
+        [userId, commandName, channel.server_id]
+      );
+
+      if (commandLookup.rowCount && commandLookup.rowCount > 0) {
+        finalBody = (commandLookup.rows[0].response_text as string).replace(/\{\{args\}\}/g, argString);
+      }
+    }
+
     const result = await pool.query(
       `
       INSERT INTO messages (server_id, channel_id, author_user_id, body, reply_to_message_id)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id, channel_id, author_user_id, body, reply_to_message_id, edited_at, created_at
       `,
-      [channel.server_id, params.channelId, userId, parsed.data.body, parsed.data.replyToMessageId ?? null]
+      [channel.server_id, params.channelId, userId, finalBody, parsed.data.replyToMessageId ?? null]
     );
 
     return reply.code(201).send({ message: result.rows[0] });

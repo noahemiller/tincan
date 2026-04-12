@@ -46,6 +46,10 @@ Implemented now:
 - `GET /api/channels/:channelId/messages`
 - `POST /api/channels/:channelId/messages`
 - `POST /api/messages/:messageId/reactions/toggle`
+- `GET /api/me/commands`
+- `POST /api/me/commands`
+- `GET /api/servers/:serverId/commands`
+- `POST /api/servers/:serverId/commands`
 - `POST /api/channels/:channelId/read`
 - `GET /api/unread`
 

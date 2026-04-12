@@ -30,6 +30,12 @@ type Message = {
   reactions: { emoji: string; count: number }[];
 };
 
+type Command = {
+  id: string;
+  command: string;
+  response_text: string;
+};
+
 const TOKEN_KEY = 'tincan_token';
 
 export function App() {
@@ -61,6 +67,10 @@ export function App() {
       unread_count: number;
     }[]
   >([]);
+  const [userCommands, setUserCommands] = useState<Command[]>([]);
+  const [serverCommands, setServerCommands] = useState<Command[]>([]);
+  const [userCommandForm, setUserCommandForm] = useState({ command: '', responseText: '' });
+  const [serverCommandForm, setServerCommandForm] = useState({ command: '', responseText: '' });
 
   const selectedServer = useMemo(
     () => servers.find((server) => server.id === selectedServerId) ?? null,
@@ -86,10 +96,12 @@ export function App() {
       const meResult = await api.me(nextToken);
       const serverResult = await api.servers(nextToken);
       const unreadResult = await api.unread(nextToken);
+      const userCommandResult = await api.userCommands(nextToken);
 
       setUser(meResult.user);
       setServers(serverResult.servers);
       setUnread(unreadResult.unread);
+      setUserCommands(userCommandResult.commands);
 
       if (serverResult.servers.length > 0) {
         const firstServer = serverResult.servers[0];
@@ -106,7 +118,9 @@ export function App() {
 
   async function loadChannels(nextToken: string, serverId: string) {
     const channelResult = await api.channels(nextToken, serverId);
+    const serverCommandResult = await api.serverCommands(nextToken, serverId);
     setChannels(channelResult.channels);
+    setServerCommands(serverCommandResult.commands);
 
     if (channelResult.channels.length > 0) {
       const firstChannel = channelResult.channels[0];
@@ -233,8 +247,56 @@ export function App() {
     setServers([]);
     setChannels([]);
     setMessages([]);
+    setUserCommands([]);
+    setServerCommands([]);
     setSelectedChannelId('');
     setSelectedServerId('');
+  }
+
+  async function onCreateUserCommand(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!token || !userCommandForm.command.trim() || !userCommandForm.responseText.trim()) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      await api.createUserCommand(token, {
+        command: userCommandForm.command.trim(),
+        responseText: userCommandForm.responseText.trim()
+      });
+      setUserCommandForm({ command: '', responseText: '' });
+      const result = await api.userCommands(token);
+      setUserCommands(result.commands);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Failed to create user command');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onCreateServerCommand(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!token || !selectedServerId || !serverCommandForm.command.trim() || !serverCommandForm.responseText.trim()) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      await api.createServerCommand(token, selectedServerId, {
+        command: serverCommandForm.command.trim(),
+        responseText: serverCommandForm.responseText.trim()
+      });
+      setServerCommandForm({ command: '', responseText: '' });
+      const result = await api.serverCommands(token, selectedServerId);
+      setServerCommands(result.commands);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Failed to create server command');
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (!token || !user) {
@@ -396,6 +458,50 @@ export function App() {
             </li>
           ))}
         </ul>
+        <section className="commands-panel">
+          <h3>My Commands</h3>
+          <form onSubmit={onCreateUserCommand}>
+            <input
+              placeholder="/command"
+              value={userCommandForm.command}
+              onChange={(event) => setUserCommandForm((prev) => ({ ...prev, command: event.target.value }))}
+            />
+            <input
+              placeholder="Response text (use {{args}})"
+              value={userCommandForm.responseText}
+              onChange={(event) => setUserCommandForm((prev) => ({ ...prev, responseText: event.target.value }))}
+            />
+            <button type="submit">Save</button>
+          </form>
+          <div className="command-list">
+            {userCommands.map((command) => (
+              <code key={command.id}>/{command.command}</code>
+            ))}
+          </div>
+        </section>
+        <section className="commands-panel">
+          <h3>Server Commands</h3>
+          <form onSubmit={onCreateServerCommand}>
+            <input
+              placeholder="/command"
+              value={serverCommandForm.command}
+              onChange={(event) => setServerCommandForm((prev) => ({ ...prev, command: event.target.value }))}
+            />
+            <input
+              placeholder="Response text (use {{args}})"
+              value={serverCommandForm.responseText}
+              onChange={(event) => setServerCommandForm((prev) => ({ ...prev, responseText: event.target.value }))}
+            />
+            <button type="submit" disabled={!selectedServerId}>
+              Save
+            </button>
+          </form>
+          <div className="command-list">
+            {serverCommands.map((command) => (
+              <code key={command.id}>/{command.command}</code>
+            ))}
+          </div>
+        </section>
       </aside>
 
       {error ? <pre className="error floating">{error}</pre> : null}

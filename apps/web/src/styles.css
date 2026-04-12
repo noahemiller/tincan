@@ -227,6 +227,32 @@ button.ghost {
   color: var(--text-muted);
 }
 
+.commands-panel {
+  margin-top: 0.7rem;
+  border-top: 1px dashed var(--border);
+  padding-top: 0.7rem;
+}
+
+.commands-panel h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.command-list {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.command-list code {
+  background: rgba(62, 123, 110, 0.14);
+  border: 1px solid rgba(62, 123, 110, 0.3);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.48rem;
+}
+
 .error {
   background: rgba(190, 24, 63, 0.15);
   color: #7e1837;

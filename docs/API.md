@@ -19,6 +19,13 @@
 - `POST /api/channels/:channelId/messages`
 - `POST /api/messages/:messageId/reactions/toggle`
 
+## Custom Slash Commands
+
+- `GET /api/me/commands`
+- `POST /api/me/commands`
+- `GET /api/servers/:serverId/commands`
+- `POST /api/servers/:serverId/commands`
+
 ## Read + Unread
 
 - `POST /api/channels/:channelId/read`

@@ -12,8 +12,9 @@ This scope was selected to maximize a usable private-community chat baseline qui
 4. Channel creation and listing per server
 5. Message posting and retrieval by channel
 6. Emoji reaction toggle
-7. Per-channel read watermark endpoint + unread summary query
-8. Docker-first local deployment
+7. Custom slash commands (user and server scope) with command expansion at message send time
+8. Per-channel read watermark endpoint + unread summary query
+9. Docker-first local deployment
 
 ## Deferred
 
