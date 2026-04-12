@@ -38,5 +38,6 @@ All notable changes to this project are tracked here.
 - Added link preview refresh scheduler with expiry/retry metadata and exponential backoff
 - Added first-column navigation tabs (`Servers`, `DMs`, `Channels`) so server management is not always expanded
 - Kept library controls in right rail (deferred moving library into channel-column tabs)
+- Switched first column to compact Discord-style icon rail controlling panel content in the second column
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation

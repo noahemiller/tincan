@@ -99,7 +99,7 @@ button.ghost {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 220px 260px 1fr 260px;
+  grid-template-columns: 72px 260px 1fr 260px;
   gap: 0.65rem;
   padding: 0.65rem;
   height: calc(100vh - 1.3rem);
@@ -139,11 +139,6 @@ button.ghost {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-}
-
-.sidebar-tabs {
-  display: grid;
-  gap: 0.3rem;
 }
 
 .panel-note {
@@ -220,6 +215,26 @@ button.ghost {
   border-color: var(--accent);
   background: rgba(119, 118, 188, 0.16);
   color: var(--text);
+}
+
+.rail {
+  padding: 0.5rem;
+  justify-content: flex-start;
+}
+
+.rail-nav {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.rail-button {
+  width: 100%;
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 .channels-header {
@@ -568,7 +583,7 @@ button.ghost {
 
 @media (max-width: 1180px) {
   .app-shell {
-    grid-template-columns: 190px 220px 1fr;
+    grid-template-columns: 64px 220px 1fr;
     height: calc(100vh - 1.3rem);
   }
 
@@ -583,8 +598,8 @@ button.ghost {
     height: auto;
   }
 
-  .sidebar.servers,
-  .sidebar.channels,
+  .sidebar.rail,
+  .sidebar.panel,
   .unread {
     display: none;
   }

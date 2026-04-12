@@ -763,28 +763,41 @@ export function App() {
 
   return (
     <main className="app-shell">
-      <aside className="sidebar servers">
-        <header className="sidebar-tabs">
+      <aside className="sidebar rail">
+        <nav className="rail-nav">
           <button
-            className={leftRailTab === 'servers' ? 'item active' : 'item'}
+            aria-label="Servers"
+            className={leftRailTab === 'servers' ? 'item rail-button active' : 'item rail-button'}
             onClick={() => setLeftRailTab('servers')}
             type="button"
           >
-            Servers
-          </button>
-          <button className={leftRailTab === 'dms' ? 'item active' : 'item'} onClick={() => setLeftRailTab('dms')} type="button">
-            DMs
+            S
           </button>
           <button
-            className={leftRailTab === 'channels' ? 'item active' : 'item'}
+            aria-label="Direct messages"
+            className={leftRailTab === 'dms' ? 'item rail-button active' : 'item rail-button'}
+            onClick={() => setLeftRailTab('dms')}
+            type="button"
+          >
+            DM
+          </button>
+          <button
+            aria-label="Channels"
+            className={leftRailTab === 'channels' ? 'item rail-button active' : 'item rail-button'}
             onClick={() => setLeftRailTab('channels')}
             type="button"
           >
-            Channels
+            #
           </button>
-        </header>
+        </nav>
+      </aside>
+
+      <aside className="sidebar panel">
         {leftRailTab === 'servers' ? (
           <>
+            <header>
+              <h2>Servers</h2>
+            </header>
             <nav>
               {servers.map((server) => (
                 <button
@@ -860,6 +873,9 @@ export function App() {
         ) : null}
         {leftRailTab === 'dms' ? (
           <>
+            <header>
+              <h2>DMs</h2>
+            </header>
             <p className="panel-note">Direct messages are private chats between two people.</p>
             <div className="mini-list">
               {members.length === 0 ? <span>No contacts yet.</span> : null}
@@ -873,9 +889,20 @@ export function App() {
         ) : null}
         {leftRailTab === 'channels' ? (
           <>
-            <p className="panel-note">Quick channel picker.</p>
+            <header className="channels-header">
+              <h2>{selectedServer?.name ?? 'Channels'}</h2>
+              <label className="unread-filter-toggle">
+                <input
+                  checked={showUnreadOnly}
+                  onChange={(event) => setShowUnreadOnly(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>Unread only</span>
+              </label>
+            </header>
             <nav>
-              {channels.map((channel) => {
+              {visibleChannels.length === 0 ? <p className="empty-channel-filter">No unread channels.</p> : null}
+              {visibleChannels.map((channel) => {
                 const unreadCount = unreadCountByChannel.get(channel.id) ?? 0;
                 const statusClass = unreadCount > 0 ? 'unread-channel' : 'read-channel';
                 const activeClass = channel.id === selectedChannelId ? ' active' : '';
@@ -891,48 +918,16 @@ export function App() {
                 );
               })}
             </nav>
+            <form autoComplete="off" onSubmit={onCreateChannel}>
+              <input
+                placeholder="New channel"
+                value={channelName}
+                onChange={(event) => setChannelName(event.target.value)}
+              />
+              <button type="submit">Add</button>
+            </form>
           </>
         ) : null}
-      </aside>
-
-      <aside className="sidebar channels">
-        <header className="channels-header">
-          <h2>{selectedServer?.name ?? 'Channels'}</h2>
-          <label className="unread-filter-toggle">
-            <input
-              checked={showUnreadOnly}
-              onChange={(event) => setShowUnreadOnly(event.target.checked)}
-              type="checkbox"
-            />
-            <span>Unread only</span>
-          </label>
-        </header>
-        <nav>
-          {visibleChannels.length === 0 ? <p className="empty-channel-filter">No unread channels.</p> : null}
-          {visibleChannels.map((channel) => {
-            const unreadCount = unreadCountByChannel.get(channel.id) ?? 0;
-            const statusClass = unreadCount > 0 ? 'unread-channel' : 'read-channel';
-            const activeClass = channel.id === selectedChannelId ? ' active' : '';
-            return (
-              <button
-                className={`item channel-item ${statusClass}${activeClass}`}
-                key={channel.id}
-                onClick={() => void onSelectChannel(channel.id)}
-              >
-                <span>#{channel.name}</span>
-                {unreadCount > 0 ? <span className="channel-unread-count">{unreadCount}</span> : null}
-              </button>
-            );
-          })}
-        </nav>
-        <form autoComplete="off" onSubmit={onCreateChannel}>
-          <input
-            placeholder="New channel"
-            value={channelName}
-            onChange={(event) => setChannelName(event.target.value)}
-          />
-          <button type="submit">Add</button>
-        </form>
       </aside>
 
       <section className="chat">
