@@ -16,6 +16,11 @@
    - Web: `http://localhost:5173`
    - API health: `http://localhost:4000/api/health`
 
+## Permissions Matrix Test
+
+- Run: `pnpm test:permissions`
+- Optional target override: `API_BASE_URL=http://localhost:4000 pnpm test:permissions`
+
 ## Notes
 
 - API runs versioned SQL migrations on startup from `apps/api/sql/migrations`.

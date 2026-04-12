@@ -21,5 +21,6 @@ All notable changes to this project are tracked here.
 - Added invite link lifecycle APIs (create/list/revoke/accept + preview)
 - Added role-gated authorization rules for admin/owner actions
 - Added basic web UI for invite creation/join and member visibility
+- Added executable permissions matrix integration test script
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation

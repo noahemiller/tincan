@@ -21,6 +21,7 @@
 - Added invites table + APIs and invite-accept server join flow
 - Added owner/admin/member role constraints and admin-gated operations (channels, server commands, public collections)
 - Added owner-only endpoint to promote/demote member roles
+- Added automated permissions matrix integration script (`apps/api/scripts/permissions-matrix.ts`)
 - Implemented web MVP in `apps/web` with auth and channel/message UI
 - Added Docker Compose for app + postgres + redis
 - Added API and setup docs plus version tracking
