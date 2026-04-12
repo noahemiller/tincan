@@ -957,8 +957,8 @@ export function App() {
             </li>
           ))}
         </ul>
-        <section className="commands-panel">
-          <h3>Search</h3>
+        <details className="commands-panel" open>
+          <summary>Search</summary>
           <form autoComplete="off" onSubmit={onSearchMessages}>
             <input
               placeholder="Search messages"
@@ -976,9 +976,9 @@ export function App() {
               </article>
             ))}
           </div>
-        </section>
-        <section className="commands-panel">
-          <h3>Library</h3>
+        </details>
+        <details className="commands-panel" open>
+          <summary>Library</summary>
           <form autoComplete="off" onSubmit={onCreateCollection}>
             <input
               placeholder="New collection name"
@@ -1021,9 +1021,9 @@ export function App() {
               </label>
             ))}
           </div>
-        </section>
-        <section className="commands-panel">
-          <h3>My Commands</h3>
+        </details>
+        <details className="commands-panel">
+          <summary>My Commands</summary>
           <form autoComplete="off" onSubmit={onCreateUserCommand}>
             <input
               placeholder="/command"
@@ -1042,9 +1042,9 @@ export function App() {
               <code key={command.id}>/{command.command}</code>
             ))}
           </div>
-        </section>
-        <section className="commands-panel">
-          <h3>Server Commands</h3>
+        </details>
+        <details className="commands-panel">
+          <summary>Server Commands</summary>
           <form autoComplete="off" onSubmit={onCreateServerCommand}>
             <input
               placeholder="/command"
@@ -1065,10 +1065,10 @@ export function App() {
               <code key={command.id}>/{command.command}</code>
             ))}
           </div>
-        </section>
+        </details>
         {selectedThreadRootId ? (
-          <section className="commands-panel thread-panel">
-            <h3>Thread</h3>
+          <details className="commands-panel thread-panel" open>
+            <summary>Thread</summary>
             <div className="thread-list">
               {threadMessages.map((message) => (
                 <article key={message.id} className="thread-message">
@@ -1087,7 +1087,7 @@ export function App() {
                 Reply
               </button>
             </form>
-          </section>
+          </details>
         ) : null}
       </aside>
 

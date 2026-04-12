@@ -209,10 +209,10 @@ button.ghost {
 }
 
 .messages {
-  padding: 0.9rem;
+  padding: 0.75rem 0.85rem;
   display: grid;
   align-content: start;
-  gap: 0.65rem;
+  gap: 0.5rem;
   overflow-y: auto;
 }
 
@@ -220,7 +220,7 @@ button.ghost {
   border: 1px solid rgba(62, 123, 110, 0.2);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.78);
-  padding: 0.75rem;
+  padding: 0.6rem;
 }
 
 .message .meta {
@@ -348,9 +348,35 @@ button.ghost {
   padding-top: 0.7rem;
 }
 
-.commands-panel h3 {
-  margin: 0 0 0.5rem;
+.commands-panel summary {
+  list-style: none;
+  cursor: pointer;
   font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text);
+}
+
+.commands-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.commands-panel summary::after {
+  content: '+';
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: transform 0.15s ease;
+}
+
+.commands-panel[open] summary::after {
+  content: '−';
+}
+
+.commands-panel > *:not(summary) {
+  margin-top: 0.5rem;
 }
 
 .command-list {
