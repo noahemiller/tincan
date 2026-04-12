@@ -114,9 +114,11 @@ button.ghost {
 
 .sidebar {
   padding: 0.9rem;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .sidebar h2,
@@ -128,6 +130,9 @@ button.ghost {
   display: grid;
   gap: 0.45rem;
   align-content: start;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .mini-list {
@@ -165,7 +170,7 @@ button.ghost {
 
 .chat {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   overflow: hidden;
 }
 
@@ -183,6 +188,7 @@ button.ghost {
   gap: 0.6rem;
   padding: 0.8rem 0.9rem;
   border-bottom: 1px solid var(--border);
+  align-items: end;
 }
 
 .channel-pref label {
@@ -190,6 +196,11 @@ button.ghost {
   gap: 0.25rem;
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+.channel-pref button {
+  height: 42px;
+  align-self: end;
 }
 
 .messages {
@@ -290,6 +301,7 @@ button.ghost {
   padding: 0.9rem;
   border-top: 1px solid var(--border);
   grid-template-columns: 1fr auto;
+  align-items: center;
 }
 
 .composer-main {
@@ -450,6 +462,10 @@ button.ghost {
   }
 
   .chat {
-    min-height: 100vh;
+    min-height: calc(100vh - 1.8rem);
+  }
+
+  .channel-pref {
+    grid-template-columns: 1fr;
   }
 }
