@@ -96,6 +96,7 @@ export function App() {
   const [threadComposer, setThreadComposer] = useState('');
   const [channelMode, setChannelMode] = useState<'hidden' | 'passive' | 'active'>('passive');
   const [channelSnoozeHours, setChannelSnoozeHours] = useState('0');
+  const [channelSettingsOpen, setChannelSettingsOpen] = useState(false);
   const [linkPreviews, setLinkPreviews] = useState<Record<string, LinkPreview>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<
@@ -499,6 +500,7 @@ export function App() {
         mode: channelMode,
         snoozedUntil
       });
+      setChannelSettingsOpen(false);
       const unreadResult = await api.unread(token);
       setUnread(unreadResult.unread);
       if (selectedServerId) {
@@ -589,6 +591,7 @@ export function App() {
     }
 
     setSelectedChannelId(channelId);
+    setChannelSettingsOpen(false);
     setSelectedThreadRootId('');
     setThreadMessages([]);
     if (selectedServerId) {
@@ -840,32 +843,52 @@ export function App() {
       <section className="chat">
         <header className="chat-header">
           <h2>{selectedChannel ? `#${selectedChannel.name}` : 'Pick a channel'}</h2>
-          <button className="ghost" onClick={() => void logout()}>
-            Logout
-          </button>
+          <div className="chat-header-actions">
+            <button
+              aria-label="Open channel settings"
+              className="ghost mini icon-button"
+              disabled={!selectedChannelId}
+              onClick={() => setChannelSettingsOpen((prev) => !prev)}
+              type="button"
+            >
+              ⚙
+            </button>
+            <div className="profile-chip">
+              <strong>{user.name}</strong>
+              <span>@{user.handle}</span>
+            </div>
+            <button className="ghost" onClick={() => void logout()}>
+              Logout
+            </button>
+          </div>
         </header>
-        <form autoComplete="off" className="channel-pref" onSubmit={onSaveChannelPreference}>
-          <label>
-            Mode
-            <select value={channelMode} onChange={(event) => setChannelMode(event.target.value as 'hidden' | 'passive' | 'active')}>
-              <option value="passive">Passive</option>
-              <option value="active">Active</option>
-              <option value="hidden">Hidden</option>
-            </select>
-          </label>
-          <label>
-            Snooze (hours)
-            <input
-              type="number"
-              min="0"
-              value={channelSnoozeHours}
-              onChange={(event) => setChannelSnoozeHours(event.target.value)}
-            />
-          </label>
-          <button type="submit" disabled={!selectedChannelId}>
-            Save
-          </button>
-        </form>
+        {channelSettingsOpen ? (
+          <form autoComplete="off" className="channel-settings-panel" onSubmit={onSaveChannelPreference}>
+            <label>
+              Mode
+              <select
+                value={channelMode}
+                onChange={(event) => setChannelMode(event.target.value as 'hidden' | 'passive' | 'active')}
+              >
+                <option value="passive">Passive</option>
+                <option value="active">Active</option>
+                <option value="hidden">Hidden</option>
+              </select>
+            </label>
+            <label>
+              Snooze (hours)
+              <input
+                type="number"
+                min="0"
+                value={channelSnoozeHours}
+                onChange={(event) => setChannelSnoozeHours(event.target.value)}
+              />
+            </label>
+            <button type="submit" disabled={!selectedChannelId}>
+              Save
+            </button>
+          </form>
+        ) : null}
 
         <div className="messages">
           {messages.map((message) => (
