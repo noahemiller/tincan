@@ -222,7 +222,11 @@ export const api = {
         title?: string | null;
         description?: string | null;
         media_url?: string | null;
+        preview_image_url?: string | null;
+        preview_title?: string | null;
+        preview_description?: string | null;
         channel_name: string;
+        created_at: string;
       }[];
     }>(`/api/library/items?${params.toString()}`, {}, token);
   },
@@ -257,8 +261,19 @@ export const api = {
         title?: string | null;
         description?: string | null;
         media_url?: string | null;
+        preview_image_url?: string | null;
+        preview_title?: string | null;
+        preview_description?: string | null;
+        channel_name?: string;
+        created_at: string;
       }[];
     }>(`/api/library/collections/${collectionId}/items`, {}, token),
+  reorderCollectionItems: (token: string, collectionId: string, libraryItemIds: string[]) =>
+    request<{ updated: number }>(
+      `/api/library/collections/${collectionId}/items/order`,
+      { method: 'PATCH', body: JSON.stringify({ libraryItemIds }) },
+      token
+    ),
   userCommands: (token: string) =>
     request<{ commands: { id: string; command: string; response_text: string }[] }>('/api/me/commands', {}, token),
   createUserCommand: (token: string, payload: { command: string; responseText: string }) =>

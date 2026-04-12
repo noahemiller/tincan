@@ -94,6 +94,10 @@ const removeCollectionItemsSchema = z.object({
   libraryItemIds: z.array(z.string().uuid()).min(1).max(100)
 });
 
+const reorderCollectionItemsSchema = z.object({
+  libraryItemIds: z.array(z.string().uuid()).min(1).max(500)
+});
+
 const createInviteSchema = z.object({
   roleToGrant: z.enum(['admin', 'member']).default('member'),
   maxUses: z.number().int().positive().max(10000).optional(),
@@ -1009,12 +1013,18 @@ export async function registerAppRoutes(app: FastifyInstance) {
     const result = await pool.query(
       `
       SELECT li.id, li.item_type, li.url, li.title, li.description, li.taxonomy_terms, li.created_at,
-             mi.public_url AS media_url
+             c.name AS channel_name,
+             mi.public_url AS media_url,
+             lp.title AS preview_title,
+             lp.description AS preview_description,
+             lp.image_url AS preview_image_url
       FROM collection_items ci
       JOIN library_items li ON li.id = ci.library_item_id
+      JOIN channels c ON c.id = li.channel_id
       LEFT JOIN media_items mi ON mi.id = li.media_item_id
+      LEFT JOIN link_previews lp ON lp.url = li.url
       WHERE ci.collection_id = $1
-      ORDER BY ci.created_at DESC
+      ORDER BY ci.sort_order ASC, ci.created_at ASC
       `,
       [params.collectionId]
     );
@@ -1068,8 +1078,13 @@ export async function registerAppRoutes(app: FastifyInstance) {
     for (const item of validItems.rows) {
       await pool.query(
         `
-        INSERT INTO collection_items (collection_id, library_item_id, added_by_user_id)
-        VALUES ($1, $2, $3)
+        INSERT INTO collection_items (collection_id, library_item_id, added_by_user_id, sort_order)
+        VALUES (
+          $1,
+          $2,
+          $3,
+          COALESCE((SELECT MAX(ci.sort_order) + 1 FROM collection_items ci WHERE ci.collection_id = $1), 1)
+        )
         ON CONFLICT DO NOTHING
         `,
         [params.collectionId, item.id, userId]
@@ -1122,6 +1137,82 @@ export async function registerAppRoutes(app: FastifyInstance) {
     );
 
     return { removed: removed.rowCount ?? 0 };
+  });
+
+  app.patch('/api/library/collections/:collectionId/items/order', { preHandler: authGuard }, async (request, reply) => {
+    const params = request.params as { collectionId: string };
+    const parsed = reorderCollectionItemsSchema.safeParse(request.body);
+    const userId = request.authUser!.userId;
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const collectionResult = await pool.query(
+      `
+      SELECT id, server_id, visibility, created_by_user_id
+      FROM collections
+      WHERE id = $1
+      `,
+      [params.collectionId]
+    );
+
+    if (collectionResult.rowCount === 0) {
+      return reply.code(404).send({ error: 'Collection not found' });
+    }
+
+    const collection = collectionResult.rows[0];
+    const isMember = await requireServerMembership(userId, collection.server_id);
+
+    if (!isMember) {
+      return reply.code(403).send({ error: 'Not a server member' });
+    }
+
+    if (collection.visibility === 'private' && collection.created_by_user_id !== userId) {
+      return reply.code(403).send({ error: 'Collection is private' });
+    }
+
+    const expectedCountResult = await pool.query<{ count: string }>(
+      `
+      SELECT COUNT(*)::text AS count
+      FROM collection_items
+      WHERE collection_id = $1
+      `,
+      [params.collectionId]
+    );
+
+    const matchedCountResult = await pool.query<{ count: string }>(
+      `
+      SELECT COUNT(*)::text AS count
+      FROM collection_items
+      WHERE collection_id = $1
+        AND library_item_id = ANY($2::uuid[])
+      `,
+      [params.collectionId, parsed.data.libraryItemIds]
+    );
+
+    const expectedCount = Number(expectedCountResult.rows[0]?.count ?? 0);
+    const matchedCount = Number(matchedCountResult.rows[0]?.count ?? 0);
+
+    if (expectedCount !== parsed.data.libraryItemIds.length || matchedCount !== expectedCount) {
+      return reply.code(400).send({ error: 'libraryItemIds must include each collection item exactly once' });
+    }
+
+    await pool.query(
+      `
+      WITH incoming AS (
+        SELECT * FROM unnest($2::uuid[]) WITH ORDINALITY AS t(library_item_id, position)
+      )
+      UPDATE collection_items ci
+      SET sort_order = incoming.position::int
+      FROM incoming
+      WHERE ci.collection_id = $1
+        AND ci.library_item_id = incoming.library_item_id
+      `,
+      [params.collectionId, parsed.data.libraryItemIds]
+    );
+
+    return { updated: parsed.data.libraryItemIds.length };
   });
 
   app.get('/api/channels/:channelId/messages', { preHandler: authGuard }, async (request, reply) => {

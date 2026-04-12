@@ -51,5 +51,10 @@ All notable changes to this project are tracked here.
 - Added inline YouTube embeds in link previews for playable video cards
 - Added dual-service music preview cards for Spotify/Apple links with play options for both platforms
 - Improved library workspace curation UX with scope/filter/sort controls and collection item removal
+- Added persistent collection item ordering with drag-and-drop and backend `sort_order` storage
+- Added collection reorder API (`PATCH /api/library/collections/:collectionId/items/order`)
+- Expanded library pane to card-based rows with thumbnails, channel context, and richer metadata
+- Added bulk library selection helpers (`Select Filtered`, `Clear Selection`)
+- Added OGP fallback metadata in library cards (preview title + description + image when available)
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation

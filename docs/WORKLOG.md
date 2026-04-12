@@ -1,5 +1,17 @@
 # Worklog
 
+## 2026-04-13
+
+- Added migration `0006_collection_items_sort_order.sql` to persist manual collection ordering
+- Updated collection item retrieval to return OGP fallback metadata and honor `sort_order`
+- Added reorder endpoint: `PATCH /api/library/collections/:collectionId/items/order`
+- Updated collection add flow to append with incremental `sort_order`
+- Added library-side API client support for reorder and richer preview fields
+- Reworked library pane into card-style items with image thumbnail, title, description, URL, and channel context
+- Added bulk selection controls (`Select Filtered`, `Clear Selection`)
+- Added drag-and-drop reordering for selected collection scope (manual sort mode), with persisted backend order
+- Added OGP title/description fallback display in library cards when item metadata is missing
+
 ## 2026-04-12
 
 - Initialized empty repository as Tincan monorepo

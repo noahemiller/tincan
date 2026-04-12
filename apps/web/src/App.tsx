@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 
 import { api } from './api';
 
@@ -57,6 +57,20 @@ type Command = {
   id: string;
   command: string;
   response_text: string;
+};
+
+type LibraryItem = {
+  id: string;
+  item_type: 'url' | 'media';
+  url?: string | null;
+  title?: string | null;
+  description?: string | null;
+  media_url?: string | null;
+  preview_image_url?: string | null;
+  preview_title?: string | null;
+  preview_description?: string | null;
+  channel_name?: string;
+  created_at?: string;
 };
 
 const TOKEN_KEY = 'tincan_token';
@@ -210,21 +224,19 @@ export function App() {
   const [searchResults, setSearchResults] = useState<
     { id: string; body: string; author_name: string; channel_name: string; created_at: string }[]
   >([]);
-  const [libraryItems, setLibraryItems] = useState<
-    { id: string; item_type: 'url' | 'media'; url?: string | null; title?: string | null; media_url?: string | null; channel_name: string }[]
-  >([]);
+  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
   const [collections, setCollections] = useState<{ id: string; name: string; visibility: 'private' | 'public' }[]>([]);
   const [collectionName, setCollectionName] = useState('');
   const [collectionVisibility, setCollectionVisibility] = useState<'private' | 'public'>('private');
   const [selectedCollectionId, setSelectedCollectionId] = useState('');
   const [selectedLibraryItemIds, setSelectedLibraryItemIds] = useState<string[]>([]);
-  const [collectionItems, setCollectionItems] = useState<
-    { id: string; item_type: 'url' | 'media'; url?: string | null; title?: string | null; media_url?: string | null; channel_name?: string }[]
-  >([]);
+  const [collectionItems, setCollectionItems] = useState<LibraryItem[]>([]);
   const [libraryScope, setLibraryScope] = useState<'all' | 'collection'>('all');
   const [libraryQuery, setLibraryQuery] = useState('');
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<'all' | 'url' | 'media'>('all');
-  const [librarySort, setLibrarySort] = useState<'newest' | 'oldest' | 'title'>('newest');
+  const [librarySort, setLibrarySort] = useState<'newest' | 'oldest' | 'title' | 'manual'>('newest');
+  const [draggingLibraryItemId, setDraggingLibraryItemId] = useState<string | null>(null);
+  const [dragOverLibraryItemId, setDragOverLibraryItemId] = useState<string | null>(null);
   const [inviteRoleToGrant, setInviteRoleToGrant] = useState<'admin' | 'member'>('member');
   const [inviteMaxUses, setInviteMaxUses] = useState('');
   const [inviteExpiresHours, setInviteExpiresHours] = useState('');
@@ -272,6 +284,7 @@ export function App() {
     () => (libraryScope === 'collection' && selectedCollectionId ? collectionItems : libraryItems),
     [libraryScope, selectedCollectionId, collectionItems, libraryItems]
   );
+  const canReorderCollection = libraryScope === 'collection' && !!selectedCollectionId && librarySort === 'manual';
 
   const filteredLibraryItems = useMemo(() => {
     const query = libraryQuery.trim().toLowerCase();
@@ -283,19 +296,35 @@ export function App() {
       if (!query) {
         return true;
       }
-      const haystack = [item.title, item.url, item.media_url, item.channel_name].filter(Boolean).join(' ').toLowerCase();
+      const haystack = [
+        item.title,
+        item.description,
+        item.preview_title,
+        item.preview_description,
+        item.url,
+        item.media_url,
+        item.channel_name
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
       return haystack.includes(query);
     });
 
     const sorted = [...filtered];
+    if (librarySort === 'manual' && libraryScope === 'collection') {
+      return sorted;
+    }
     if (librarySort === 'title') {
       sorted.sort((a, b) => (a.title || a.url || '').localeCompare(b.title || b.url || ''));
     } else if (librarySort === 'oldest') {
-      sorted.reverse();
+      sorted.sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime());
+    } else {
+      sorted.sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());
     }
 
     return sorted;
-  }, [activeLibraryItems, libraryQuery, libraryTypeFilter, librarySort]);
+  }, [activeLibraryItems, libraryQuery, libraryTypeFilter, librarySort, libraryScope]);
 
   const galleryImages = useMemo(
     () =>
@@ -404,6 +433,17 @@ export function App() {
     })();
   }, [token, selectedCollectionId]);
 
+  useEffect(() => {
+    const activeIds = new Set(activeLibraryItems.map((item) => item.id));
+    setSelectedLibraryItemIds((prev) => prev.filter((id) => activeIds.has(id)));
+  }, [activeLibraryItems]);
+
+  useEffect(() => {
+    if (libraryScope === 'collection' && librarySort !== 'manual') {
+      setLibrarySort('manual');
+    }
+  }, [libraryScope, librarySort]);
+
   async function bootstrap(nextToken: string) {
     try {
       setBusy(true);
@@ -486,9 +526,15 @@ export function App() {
     setLibraryItems(libraryResult.items);
     setCollections(collectionResult.collections);
 
-    if (!selectedCollectionId && collectionResult.collections.length > 0) {
-      setSelectedCollectionId(collectionResult.collections[0]!.id);
-    }
+    setSelectedCollectionId((prev) => {
+      if (collectionResult.collections.length === 0) {
+        return '';
+      }
+      if (prev && collectionResult.collections.some((collection) => collection.id === prev)) {
+        return prev;
+      }
+      return collectionResult.collections[0]!.id;
+    });
   }
 
   async function loadServerAdminData(nextToken: string, serverId: string) {
@@ -771,6 +817,91 @@ export function App() {
     }
   }
 
+  function getLibraryThumbnail(item: LibraryItem) {
+    if (item.item_type === 'media') {
+      return item.media_url ?? null;
+    }
+    return item.preview_image_url ?? null;
+  }
+
+  function moveLibraryItem(items: LibraryItem[], draggedId: string, targetId: string) {
+    const fromIndex = items.findIndex((item) => item.id === draggedId);
+    const toIndex = items.findIndex((item) => item.id === targetId);
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
+      return items;
+    }
+    const next = [...items];
+    const [moved] = next.splice(fromIndex, 1);
+    if (!moved) {
+      return items;
+    }
+    next.splice(toIndex, 0, moved);
+    return next;
+  }
+
+  async function persistCollectionOrder(nextItems: LibraryItem[]) {
+    if (!token || !selectedCollectionId) {
+      return;
+    }
+
+    const orderedIds = nextItems.map((item) => item.id);
+    try {
+      setBusy(true);
+      await api.reorderCollectionItems(token, selectedCollectionId, orderedIds);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Failed to save collection order');
+      try {
+        const result = await api.collectionItems(token, selectedCollectionId);
+        setCollectionItems(result.items);
+      } catch {
+        setCollectionItems([]);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function onSelectAllFilteredLibraryItems() {
+    const ids = filteredLibraryItems.map((item) => item.id);
+    setSelectedLibraryItemIds((prev) => [...new Set([...prev, ...ids])]);
+  }
+
+  function onClearLibrarySelection() {
+    setSelectedLibraryItemIds([]);
+  }
+
+  function onLibraryItemDragStart(itemId: string) {
+    if (!canReorderCollection) {
+      return;
+    }
+    setDraggingLibraryItemId(itemId);
+  }
+
+  function onLibraryItemDragOver(event: DragEvent<HTMLElement>, itemId: string) {
+    if (!canReorderCollection || !draggingLibraryItemId || draggingLibraryItemId === itemId) {
+      return;
+    }
+    event.preventDefault();
+    setDragOverLibraryItemId(itemId);
+  }
+
+  function onLibraryItemDragEnd() {
+    setDraggingLibraryItemId(null);
+    setDragOverLibraryItemId(null);
+  }
+
+  async function onLibraryItemDrop(event: DragEvent<HTMLElement>, itemId: string) {
+    event.preventDefault();
+    if (!canReorderCollection || !draggingLibraryItemId || draggingLibraryItemId === itemId) {
+      onLibraryItemDragEnd();
+      return;
+    }
+    const next = moveLibraryItem(collectionItems, draggingLibraryItemId, itemId);
+    setCollectionItems(next);
+    onLibraryItemDragEnd();
+    await persistCollectionOrder(next);
+  }
+
   async function onCreateCollection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -804,6 +935,8 @@ export function App() {
       setBusy(true);
       await api.addCollectionItems(token, selectedCollectionId, selectedLibraryItemIds);
       setSelectedLibraryItemIds([]);
+      const result = await api.collectionItems(token, selectedCollectionId);
+      setCollectionItems(result.items);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Failed to add items to collection');
     } finally {
@@ -882,10 +1015,17 @@ export function App() {
     setSearchQuery('');
     setSearchResults([]);
     setLibraryItems([]);
+    setCollectionItems([]);
     setCollections([]);
     setCollectionName('');
     setSelectedCollectionId('');
     setSelectedLibraryItemIds([]);
+    setLibraryScope('all');
+    setLibraryQuery('');
+    setLibraryTypeFilter('all');
+    setLibrarySort('newest');
+    setDraggingLibraryItemId(null);
+    setDragOverLibraryItemId(null);
     setInvites([]);
     setMembers([]);
     setJoinInviteCode('');
@@ -1376,7 +1516,7 @@ export function App() {
           <section className="library-workspace">
             <header>
               <h3>Library</h3>
-              <p>Starter library view (we can deepen this next).</p>
+              <p>{filteredLibraryItems.length} item(s) in view</p>
             </header>
             <form autoComplete="off" onSubmit={onCreateCollection}>
               <input
@@ -1408,6 +1548,22 @@ export function App() {
                   Selected collection
                 </option>
               </select>
+              <button
+                type="button"
+                className="ghost"
+                onClick={onSelectAllFilteredLibraryItems}
+                disabled={filteredLibraryItems.length === 0}
+              >
+                Select Filtered
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={onClearLibrarySelection}
+                disabled={selectedLibraryItemIds.length === 0}
+              >
+                Clear Selection ({selectedLibraryItemIds.length})
+              </button>
               <input
                 placeholder="Filter library"
                 value={libraryQuery}
@@ -1418,10 +1574,20 @@ export function App() {
                 <option value="url">Links</option>
                 <option value="media">Media</option>
               </select>
-              <select value={librarySort} onChange={(event) => setLibrarySort(event.target.value as 'newest' | 'oldest' | 'title')}>
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
+              <select
+                value={librarySort}
+                onChange={(event) => setLibrarySort(event.target.value as 'newest' | 'oldest' | 'title' | 'manual')}
+              >
+                <option value="newest" disabled={libraryScope === 'collection'}>
+                  Newest first
+                </option>
+                <option value="oldest" disabled={libraryScope === 'collection'}>
+                  Oldest first
+                </option>
                 <option value="title">Title A-Z</option>
+                <option value="manual" disabled={libraryScope !== 'collection'}>
+                  Manual order
+                </option>
               </select>
               <button
                 type="button"
@@ -1440,21 +1606,63 @@ export function App() {
               </button>
             </div>
             <div className="library-list">
-              {filteredLibraryItems.slice(0, 60).map((item) => (
-                <label key={item.id} className="library-item">
-                  <input
-                    checked={selectedLibraryItemIds.includes(item.id)}
-                    onChange={(event) =>
-                      setSelectedLibraryItemIds((prev) =>
-                        event.target.checked ? [...prev, item.id] : prev.filter((id) => id !== item.id)
-                      )
-                    }
-                    type="checkbox"
-                  />
-                  <span>{item.title || item.url || item.media_url || 'Untitled item'}</span>
-                </label>
-              ))}
+              {canReorderCollection ? <p className="panel-note">Drag cards to reorder this collection.</p> : null}
+              {filteredLibraryItems.slice(0, 100).map((item) => {
+                const thumbnail = getLibraryThumbnail(item);
+                const selected = selectedLibraryItemIds.includes(item.id);
+                const title = item.title || item.preview_title || item.url || item.media_url || 'Untitled item';
+                const description = item.description || item.preview_description;
+                return (
+                  <article
+                    className={`library-card${selected ? ' selected' : ''}${dragOverLibraryItemId === item.id ? ' drag-over' : ''}`}
+                    draggable={canReorderCollection}
+                    key={item.id}
+                    onDragEnd={onLibraryItemDragEnd}
+                    onDragOver={(event) => onLibraryItemDragOver(event, item.id)}
+                    onDragStart={() => onLibraryItemDragStart(item.id)}
+                    onDrop={(event) => void onLibraryItemDrop(event, item.id)}
+                  >
+                    <div className="library-card-head">
+                      <label className="library-check">
+                        <input
+                          checked={selected}
+                          onChange={(event) =>
+                            setSelectedLibraryItemIds((prev) =>
+                              event.target.checked ? [...new Set([...prev, item.id])] : prev.filter((id) => id !== item.id)
+                            )
+                          }
+                          type="checkbox"
+                        />
+                        <span>{item.item_type === 'url' ? 'Link' : 'Media'}</span>
+                      </label>
+                      <span className="library-channel">{item.channel_name ? `#${item.channel_name}` : 'Collection item'}</span>
+                    </div>
+                    <div className="library-card-body">
+                      {thumbnail ? (
+                        <a href={item.url || item.media_url || '#'} rel="noreferrer" target="_blank" className="library-thumb" draggable={false}>
+                          <img src={thumbnail} alt={title} />
+                        </a>
+                      ) : null}
+                      <div className="library-copy">
+                        <strong>{title}</strong>
+                        {description ? <p>{description}</p> : null}
+                        {item.url ? (
+                          <a href={item.url} rel="noreferrer" target="_blank">
+                            {item.url}
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+              {filteredLibraryItems.length > 100 ? (
+                <p className="panel-note">Showing first 100 items. Narrow filters to refine this list.</p>
+              ) : null}
               {filteredLibraryItems.length === 0 ? <p className="panel-note">No library items match this view.</p> : null}
+              {libraryScope === 'collection' && !selectedCollectionId ? (
+                <p className="panel-note">Pick a collection to curate items.</p>
+              ) : null}
             </div>
           </section>
         )}
