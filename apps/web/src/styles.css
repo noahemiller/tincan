@@ -165,6 +165,42 @@ button.ghost {
   transition: transform 0.12s ease, border-color 0.2s ease;
 }
 
+.channel-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.channel-item span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.channel-unread-count {
+  font-size: 0.68rem;
+  min-width: 1.2rem;
+  text-align: center;
+  border-radius: 999px;
+  border: 1px solid rgba(119, 118, 188, 0.35);
+  background: rgba(119, 118, 188, 0.18);
+  padding: 0.04rem 0.28rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.read-channel {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.unread-channel {
+  color: var(--text);
+  font-weight: 700;
+}
+
 .item:hover {
   transform: translateX(2px);
 }
@@ -172,6 +208,31 @@ button.ghost {
 .item.active {
   border-color: var(--accent);
   background: rgba(119, 118, 188, 0.16);
+  color: var(--text);
+}
+
+.channels-header {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.unread-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.unread-filter-toggle input {
+  margin: 0;
+}
+
+.empty-channel-filter {
+  margin: 0;
+  padding: 0.2rem 0.1rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
 }
 
 .chat {

@@ -31,6 +31,8 @@
 - Applied compact mode styling pass (smaller corners, buttons, paddings, and list density)
 - Moved channel preference controls to a gear-triggered settings panel in channel header
 - Added visible profile chip (`name` + `@handle`) next to logout to clarify app-level sign-out
+- Added unread badges directly in channel list and unread-only list filtering toggle
+- Styled read channels with muted text and unread channels with darker/high-contrast text
 - Added Docker Compose for app + postgres + redis
 - Added API and setup docs plus version tracking
 - Validation status: runtime checks blocked in this environment (`docker`, `node`, and `pnpm` are unavailable in sandbox)

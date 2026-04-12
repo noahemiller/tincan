@@ -97,6 +97,7 @@ export function App() {
   const [channelMode, setChannelMode] = useState<'hidden' | 'passive' | 'active'>('passive');
   const [channelSnoozeHours, setChannelSnoozeHours] = useState('0');
   const [channelSettingsOpen, setChannelSettingsOpen] = useState(false);
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [linkPreviews, setLinkPreviews] = useState<Record<string, LinkPreview>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<
@@ -138,6 +139,19 @@ export function App() {
   const selectedChannel = useMemo(
     () => channels.find((channel) => channel.id === selectedChannelId) ?? null,
     [channels, selectedChannelId]
+  );
+
+  const unreadCountByChannel = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of unread) {
+      map.set(item.channel_id, item.unread_count);
+    }
+    return map;
+  }, [unread]);
+
+  const visibleChannels = useMemo(
+    () => channels.filter((channel) => !showUnreadOnly || (unreadCountByChannel.get(channel.id) ?? 0) > 0),
+    [channels, showUnreadOnly, unreadCountByChannel]
   );
 
   useEffect(() => {
@@ -598,6 +612,8 @@ export function App() {
       await loadLibraryAndCollections(token, selectedServerId, channelId);
     }
     await loadMessages(token, channelId);
+    const unreadResult = await api.unread(token);
+    setUnread(unreadResult.unread);
   }
 
   async function logout() {
@@ -816,19 +832,34 @@ export function App() {
       </aside>
 
       <aside className="sidebar channels">
-        <header>
+        <header className="channels-header">
           <h2>{selectedServer?.name ?? 'Channels'}</h2>
+          <label className="unread-filter-toggle">
+            <input
+              checked={showUnreadOnly}
+              onChange={(event) => setShowUnreadOnly(event.target.checked)}
+              type="checkbox"
+            />
+            <span>Unread only</span>
+          </label>
         </header>
         <nav>
-          {channels.map((channel) => (
-            <button
-              className={channel.id === selectedChannelId ? 'item active' : 'item'}
-              key={channel.id}
-              onClick={() => void onSelectChannel(channel.id)}
-            >
-              #{channel.name}
-            </button>
-          ))}
+          {visibleChannels.length === 0 ? <p className="empty-channel-filter">No unread channels.</p> : null}
+          {visibleChannels.map((channel) => {
+            const unreadCount = unreadCountByChannel.get(channel.id) ?? 0;
+            const statusClass = unreadCount > 0 ? 'unread-channel' : 'read-channel';
+            const activeClass = channel.id === selectedChannelId ? ' active' : '';
+            return (
+              <button
+                className={`item channel-item ${statusClass}${activeClass}`}
+                key={channel.id}
+                onClick={() => void onSelectChannel(channel.id)}
+              >
+                <span>#{channel.name}</span>
+                {unreadCount > 0 ? <span className="channel-unread-count">{unreadCount}</span> : null}
+              </button>
+            );
+          })}
         </nav>
         <form autoComplete="off" onSubmit={onCreateChannel}>
           <input

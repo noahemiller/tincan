@@ -29,5 +29,7 @@ All notable changes to this project are tracked here.
 - Reduced control sizing across web UI (smaller radii, spacing, and component density)
 - Moved channel mode/snooze controls into a gear-opened channel settings panel
 - Added explicit profile chip in chat header and relocated app logout beside it
+- Added per-channel unread count badges in channel list rows
+- Added “Unread only” channel filter toggle and read/unread text contrast styling
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation
