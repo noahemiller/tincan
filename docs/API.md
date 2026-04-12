@@ -54,6 +54,7 @@
 ## Link Previews
 
 - `POST /api/link-previews/batch`
+- Preview rows are refreshed in background based on `next_refresh_at` with retry backoff after fetch failures
 
 ## Library + Collections
 

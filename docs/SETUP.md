@@ -25,3 +25,8 @@
 
 - API runs versioned SQL migrations on startup from `apps/api/sql/migrations`.
 - This is a development-oriented Compose file and expects dependencies to already be installed in the workspace.
+- Link preview refresh worker runs in-process in API:
+  - `LINK_PREVIEW_TTL_HOURS` controls normal refresh cadence
+  - `LINK_PREVIEW_REFRESH_INTERVAL_MS` controls scheduler tick
+  - `LINK_PREVIEW_REFRESH_BATCH_SIZE` controls number of due previews refreshed per tick
+  - `LINK_PREVIEW_RETRY_BASE_MINUTES` and `LINK_PREVIEW_RETRY_MAX_MINUTES` control failure backoff window

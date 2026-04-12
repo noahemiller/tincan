@@ -11,6 +11,7 @@ import { config } from '../config.js';
 import { pool } from '../db/pool.js';
 import { authGuard } from '../lib/auth-guard.js';
 import { slugify } from '../lib/slugify.js';
+import { upsertLinkPreview } from './link-previews.js';
 
 const createServerSchema = z.object({
   name: z.string().min(2).max(80)
@@ -147,76 +148,6 @@ async function loadChannel(channelId: string) {
 function extractUrls(text: string) {
   const matches = text.match(/https?:\/\/[^\s<>"')]+/g) ?? [];
   return [...new Set(matches)].slice(0, 10);
-}
-
-function pickMeta(content: string, key: string) {
-  const regex = new RegExp(`<meta[^>]+(?:property|name)=["']${key}["'][^>]+content=["']([^"']+)["'][^>]*>`, 'i');
-  const match = content.match(regex);
-  return match?.[1] ?? null;
-}
-
-function pickTitle(content: string) {
-  const match = content.match(/<title[^>]*>([^<]+)<\/title>/i);
-  return match?.[1]?.trim() ?? null;
-}
-
-async function upsertLinkPreview(url: string) {
-  const existing = await pool.query('SELECT url, title, description, image_url, site_name, fetched_at FROM link_previews WHERE url = $1', [url]);
-
-  if (existing.rowCount && existing.rowCount > 0) {
-    return existing.rows[0];
-  }
-
-  let preview = {
-    url,
-    title: null as string | null,
-    description: null as string | null,
-    image_url: null as string | null,
-    site_name: null as string | null
-  };
-
-  try {
-    const response = await fetch(url, {
-      redirect: 'follow',
-      headers: { 'user-agent': 'TincanBot/0.1 (+https://tincan.local)' },
-      signal: AbortSignal.timeout(5000)
-    });
-
-    if (response.ok) {
-      const contentType = response.headers.get('content-type') ?? '';
-
-      if (contentType.includes('text/html')) {
-        const html = await response.text();
-        preview = {
-          url,
-          title: pickMeta(html, 'og:title') ?? pickTitle(html),
-          description: pickMeta(html, 'og:description') ?? pickMeta(html, 'description'),
-          image_url: pickMeta(html, 'og:image'),
-          site_name: pickMeta(html, 'og:site_name')
-        };
-      }
-    }
-  } catch {
-    // Best-effort preview fetch; store minimal row even on failure.
-  }
-
-  const stored = await pool.query(
-    `
-    INSERT INTO link_previews (url, title, description, image_url, site_name, fetched_at)
-    VALUES ($1, $2, $3, $4, $5, NOW())
-    ON CONFLICT (url)
-    DO UPDATE SET
-      title = EXCLUDED.title,
-      description = EXCLUDED.description,
-      image_url = EXCLUDED.image_url,
-      site_name = EXCLUDED.site_name,
-      fetched_at = NOW()
-    RETURNING url, title, description, image_url, site_name, fetched_at
-    `,
-    [preview.url, preview.title, preview.description, preview.image_url, preview.site_name]
-  );
-
-  return stored.rows[0];
 }
 
 async function ingestLibraryForMessage(params: {

@@ -12,5 +12,10 @@ export const config = {
   accessTokenTtl: process.env.ACCESS_TOKEN_TTL ?? '15m',
   refreshTokenDays: Number(process.env.REFRESH_TOKEN_DAYS ?? 30),
   authMaxAttemptsPerWindow: Number(process.env.AUTH_MAX_ATTEMPTS_PER_WINDOW ?? 8),
-  authAttemptWindowMinutes: Number(process.env.AUTH_ATTEMPT_WINDOW_MINUTES ?? 15)
+  authAttemptWindowMinutes: Number(process.env.AUTH_ATTEMPT_WINDOW_MINUTES ?? 15),
+  linkPreviewTtlHours: Number(process.env.LINK_PREVIEW_TTL_HOURS ?? 168),
+  linkPreviewRefreshIntervalMs: Number(process.env.LINK_PREVIEW_REFRESH_INTERVAL_MS ?? 60000),
+  linkPreviewRefreshBatchSize: Number(process.env.LINK_PREVIEW_REFRESH_BATCH_SIZE ?? 20),
+  linkPreviewRetryBaseMinutes: Number(process.env.LINK_PREVIEW_RETRY_BASE_MINUTES ?? 15),
+  linkPreviewRetryMaxMinutes: Number(process.env.LINK_PREVIEW_RETRY_MAX_MINUTES ?? 1440)
 };

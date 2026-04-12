@@ -10,6 +10,7 @@ import { config } from './config.js';
 import { runMigrations } from './db/migrate.js';
 import { registerAppRoutes } from './modules/app-routes.js';
 import { registerAuthRoutes } from './modules/auth-routes.js';
+import { refreshDueLinkPreviews } from './modules/link-previews.js';
 
 async function main() {
   const app = Fastify({ logger: true });
@@ -35,6 +36,20 @@ async function main() {
   await runMigrations();
   await registerAuthRoutes(app);
   await registerAppRoutes(app);
+
+  const previewRefreshTimer = setInterval(() => {
+    void (async () => {
+      try {
+        const result = await refreshDueLinkPreviews(config.linkPreviewRefreshBatchSize);
+        if (result.refreshed > 0) {
+          app.log.info({ refreshed: result.refreshed }, 'refreshed stale link previews');
+        }
+      } catch (error) {
+        app.log.warn({ error }, 'link preview refresh cycle failed');
+      }
+    })();
+  }, config.linkPreviewRefreshIntervalMs);
+  previewRefreshTimer.unref();
 
   await app.listen({ host: '0.0.0.0', port: config.port });
 }

@@ -35,5 +35,6 @@ All notable changes to this project are tracked here.
 - Removed redundant right-rail unread summary block (now consolidated in channel list)
 - Improved message search ranking using Postgres full-text search relevance + recency
 - Added dedicated GIN full-text index for `messages.body`
+- Added link preview refresh scheduler with expiry/retry metadata and exponential backoff
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation

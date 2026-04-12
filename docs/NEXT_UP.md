@@ -2,14 +2,15 @@
 
 ## Priority sequence
 
-1. Add OGP refresh/expiry jobs and failure retry strategy
-2. Add collection item curation UX (bulk select, remove, reorder, filters)
-3. Add library taxonomy editing and validated-vs-suggested metadata states
-4. Add search query highlighting/snippet extraction in web results
+1. Add collection item curation UX (bulk select, remove, reorder, filters)
+2. Add library taxonomy editing and validated-vs-suggested metadata states
+3. Add search query highlighting/snippet extraction in web results
+4. Add search faceting (date range, author, channel)
 
 ## Recently completed
 
 1. Improved search relevance and added Postgres full-text index for message body search
+2. Added OGP preview refresh/expiry scheduler and retry metadata/backoff strategy
 
 ## Hardening
 

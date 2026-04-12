@@ -38,6 +38,9 @@
 - Removed the duplicate unread section from the right sidebar to avoid redundant signal
 - Upgraded `/api/search/messages` to ranked full-text retrieval with recency tie-breakers
 - Added migration `0004_message_search_fts_indexes.sql` with GIN index on message body tsvector
+- Added shared link preview module and API startup refresh scheduler loop
+- Added migration `0005_link_preview_refresh_metadata.sql` for refresh/attempt/failure tracking
+- Added TTL and retry/backoff env controls for link preview refresh behavior
 - Added Docker Compose for app + postgres + redis
 - Added API and setup docs plus version tracking
 - Validation status: runtime checks blocked in this environment (`docker`, `node`, and `pnpm` are unavailable in sandbox)
