@@ -44,6 +44,9 @@
 - Added left-rail tabbed navigation (`Servers`/`DMs`/`Channels`) to reduce always-open server controls
 - Deferred library relocation; kept library controls in right sidebar for now
 - Refined left rail into Discord-style icon rail and moved contextual content rendering to second column
+- Moved search into middle toolbar above chat and removed search/library duplication from right sidebar
+- Added middle-pane toggle button to swap chat view with a starter library workspace
+- Added rendering of OGP preview images in link cards when image metadata exists
 - Added Docker Compose for app + postgres + redis
 - Added API and setup docs plus version tracking
 - Validation status: runtime checks blocked in this environment (`docker`, `node`, and `pnpm` are unavailable in sandbox)

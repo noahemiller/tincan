@@ -97,6 +97,7 @@ export function App() {
   const [channelMode, setChannelMode] = useState<'hidden' | 'passive' | 'active'>('passive');
   const [channelSnoozeHours, setChannelSnoozeHours] = useState('0');
   const [channelSettingsOpen, setChannelSettingsOpen] = useState(false);
+  const [centerPane, setCenterPane] = useState<'chat' | 'library'>('chat');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [leftRailTab, setLeftRailTab] = useState<'servers' | 'dms' | 'channels'>('servers');
   const [linkPreviews, setLinkPreviews] = useState<Record<string, LinkPreview>>({});
@@ -615,6 +616,7 @@ export function App() {
 
     setSelectedChannelId(channelId);
     setChannelSettingsOpen(false);
+    setCenterPane('chat');
     setSelectedThreadRootId('');
     setThreadMessages([]);
     if (selectedServerId) {
@@ -952,6 +954,32 @@ export function App() {
             </button>
           </div>
         </header>
+        <div className="chat-toolbar">
+          <form autoComplete="off" className="chat-search" onSubmit={onSearchMessages}>
+            <input
+              placeholder="Search messages"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+            <button type="submit">Search</button>
+          </form>
+          <button className={centerPane === 'library' ? '' : 'ghost'} onClick={() => setCenterPane(centerPane === 'chat' ? 'library' : 'chat')} type="button">
+            {centerPane === 'chat' ? 'Library' : 'Chat'}
+          </button>
+        </div>
+        {searchResults.length > 0 ? (
+          <div className="chat-search-results">
+            <div className="search-results">
+              {searchResults.slice(0, 6).map((result) => (
+                <article key={result.id} className="search-hit">
+                  <strong>{result.author_name}</strong>
+                  <span>{result.channel_name}</span>
+                  <p>{result.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {channelSettingsOpen ? (
           <form autoComplete="off" className="channel-settings-panel" onSubmit={onSaveChannelPreference}>
             <label>
@@ -980,7 +1008,8 @@ export function App() {
           </form>
         ) : null}
 
-        <div className="messages">
+        {centerPane === 'chat' ? (
+          <div className="messages">
           {messages.map((message) => (
             <article key={message.id} className="message">
               <div className="meta">
@@ -995,6 +1024,7 @@ export function App() {
                     const preview = linkPreviews[url];
                     return (
                       <a className="preview-card" href={url} key={`${message.id}-${url}`} rel="noreferrer" target="_blank">
+                        {preview?.image_url ? <img src={preview.image_url} alt={preview?.title || 'Link preview image'} /> : null}
                         <strong>{preview?.title || url}</strong>
                         {preview?.description ? <span>{preview.description}</span> : null}
                       </a>
@@ -1031,9 +1061,67 @@ export function App() {
               </div>
             </article>
           ))}
-        </div>
+          </div>
+        ) : (
+          <section className="library-workspace">
+            <header>
+              <h3>Library</h3>
+              <p>Starter library view (we can deepen this next).</p>
+            </header>
+            <form autoComplete="off" onSubmit={onCreateCollection}>
+              <input
+                placeholder="New collection name"
+                value={collectionName}
+                onChange={(event) => setCollectionName(event.target.value)}
+              />
+              <select
+                value={collectionVisibility}
+                onChange={(event) => setCollectionVisibility(event.target.value as 'private' | 'public')}
+              >
+                <option value="private">Private</option>
+                <option value="public">Public</option>
+              </select>
+              <button type="submit">Create Collection</button>
+            </form>
+            <div className="library-toolbar">
+              <select value={selectedCollectionId} onChange={(event) => setSelectedCollectionId(event.target.value)}>
+                <option value="">Select collection</option>
+                {collections.map((collection) => (
+                  <option key={collection.id} value={collection.id}>
+                    {collection.name} ({collection.visibility})
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => void onAddSelectedToCollection()}
+                disabled={!selectedCollectionId || selectedLibraryItemIds.length === 0}
+              >
+                Add Selected
+              </button>
+            </div>
+            <div className="library-list">
+              {libraryItems.slice(0, 30).map((item) => (
+                <label key={item.id} className="library-item">
+                  <input
+                    checked={selectedLibraryItemIds.includes(item.id)}
+                    onChange={(event) =>
+                      setSelectedLibraryItemIds((prev) =>
+                        event.target.checked ? [...prev, item.id] : prev.filter((id) => id !== item.id)
+                      )
+                    }
+                    type="checkbox"
+                  />
+                  <span>{item.title || item.url || item.media_url || 'Untitled item'}</span>
+                </label>
+              ))}
+              {libraryItems.length === 0 ? <p className="panel-note">No library items yet for this context.</p> : null}
+            </div>
+          </section>
+        )}
 
-        <form autoComplete="off" className="composer" onSubmit={onSendMessage}>
+        {centerPane === 'chat' ? (
+          <form autoComplete="off" className="composer" onSubmit={onSendMessage}>
           <div className="composer-main">
             <input
               placeholder="Write a message"
@@ -1055,75 +1143,11 @@ export function App() {
               ))}
             </div>
           ) : null}
-        </form>
+          </form>
+        ) : null}
       </section>
 
       <aside className="sidebar unread">
-        <details className="commands-panel" open>
-          <summary>Search</summary>
-          <form autoComplete="off" onSubmit={onSearchMessages}>
-            <input
-              placeholder="Search messages"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-            <button type="submit">Go</button>
-          </form>
-          <div className="search-results">
-            {searchResults.slice(0, 8).map((result) => (
-              <article key={result.id} className="search-hit">
-                <strong>{result.author_name}</strong>
-                <span>{result.channel_name}</span>
-                <p>{result.body}</p>
-              </article>
-            ))}
-          </div>
-        </details>
-        <details className="commands-panel" open>
-          <summary>Library</summary>
-          <form autoComplete="off" onSubmit={onCreateCollection}>
-            <input
-              placeholder="New collection name"
-              value={collectionName}
-              onChange={(event) => setCollectionName(event.target.value)}
-            />
-            <select
-              value={collectionVisibility}
-              onChange={(event) => setCollectionVisibility(event.target.value as 'private' | 'public')}
-            >
-              <option value="private">Private</option>
-              <option value="public">Public</option>
-            </select>
-            <button type="submit">Create Collection</button>
-          </form>
-          <select value={selectedCollectionId} onChange={(event) => setSelectedCollectionId(event.target.value)}>
-            <option value="">Select collection</option>
-            {collections.map((collection) => (
-              <option key={collection.id} value={collection.id}>
-                {collection.name} ({collection.visibility})
-              </option>
-            ))}
-          </select>
-          <button type="button" onClick={() => void onAddSelectedToCollection()} disabled={!selectedCollectionId || selectedLibraryItemIds.length === 0}>
-            Add Selected
-          </button>
-          <div className="library-list">
-            {libraryItems.slice(0, 12).map((item) => (
-              <label key={item.id} className="library-item">
-                <input
-                  checked={selectedLibraryItemIds.includes(item.id)}
-                  onChange={(event) =>
-                    setSelectedLibraryItemIds((prev) =>
-                      event.target.checked ? [...prev, item.id] : prev.filter((id) => id !== item.id)
-                    )
-                  }
-                  type="checkbox"
-                />
-                <span>{item.title || item.url || item.media_url || 'Untitled item'}</span>
-              </label>
-            ))}
-          </div>
-        </details>
         <details className="commands-panel">
           <summary>My Commands</summary>
           <form autoComplete="off" onSubmit={onCreateUserCommand}>

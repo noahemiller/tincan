@@ -39,5 +39,8 @@ All notable changes to this project are tracked here.
 - Added first-column navigation tabs (`Servers`, `DMs`, `Channels`) so server management is not always expanded
 - Kept library controls in right rail (deferred moving library into channel-column tabs)
 - Switched first column to compact Discord-style icon rail controlling panel content in the second column
+- Moved message search to middle-column toolbar above chat and removed duplicate right-rail search panel
+- Added middle-column Library toggle that swaps chat area into a starter library workspace
+- Added OGP preview thumbnails when `og:image` metadata is available
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation
