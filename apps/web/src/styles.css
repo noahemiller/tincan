@@ -30,7 +30,7 @@ body {
 }
 
 .app-shell.size-compact {
-  font-size: 13px;
+  font-size: 10px;
 }
 
 .app-shell.size-comfortable {
@@ -38,7 +38,7 @@ body {
 }
 
 .app-shell.size-large {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .app-shell.contrast-high {
@@ -53,6 +53,19 @@ body {
   --text-muted: #6e69a8;
   --border: rgba(119, 118, 188, 0.16);
   --panel: rgba(255, 255, 255, 0.68);
+}
+
+.app-shell.contrast-rg-safe {
+  --bg-0: #f5f6ff;
+  --bg-1: #dbe4ff;
+  --bg-2: #ffe1b8;
+  --text: #13203f;
+  --text-muted: #2e4b79;
+  --accent: #2f4fc9;
+  --accent-2: #ff8a2a;
+  --border: rgba(25, 45, 95, 0.24);
+  --panel: rgba(255, 255, 255, 0.9);
+  --panel-strong: rgba(255, 255, 255, 0.96);
 }
 
 .auth-shell,

@@ -85,7 +85,7 @@ const UI_PREFS_KEY = 'tincan_ui_prefs_v1';
 
 type UiPrefs = {
   textSize: 'compact' | 'comfortable' | 'large';
-  contrast: 'default' | 'high' | 'soft';
+  contrast: 'default' | 'high' | 'soft' | 'rg-safe';
   onboarded: boolean;
 };
 
@@ -102,7 +102,7 @@ function loadUiPrefs(): UiPrefs {
     }
     return {
       textSize: parsed.textSize === 'compact' || parsed.textSize === 'large' ? parsed.textSize : 'comfortable',
-      contrast: parsed.contrast === 'high' || parsed.contrast === 'soft' ? parsed.contrast : 'default',
+      contrast: parsed.contrast === 'high' || parsed.contrast === 'soft' || parsed.contrast === 'rg-safe' ? parsed.contrast : 'default',
       onboarded: parsed.onboarded === true
     };
   } catch {
@@ -2369,6 +2369,7 @@ export function App() {
                       <option value="default">Default</option>
                       <option value="high">High contrast</option>
                       <option value="soft">Soft contrast</option>
+                      <option value="rg-safe">Red/Green colorblind safe</option>
                     </select>
                   </label>
                 </div>

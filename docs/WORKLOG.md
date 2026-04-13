@@ -120,3 +120,5 @@
 - Converted top-right user chip into a full account menu button with dropdown actions routed into center workspace
 - Added account workspace pages for profile, settings, and accessibility controls
 - Added persisted UI preferences (`tincan_ui_prefs_v1`) plus first-login accessibility onboarding flow
+- Updated accessibility text scale presets to 10px/14px/18px (compact/comfortable/large)
+- Added red-green colorblind-safe UI mode with distinct blue/orange palette and safer contrast variables

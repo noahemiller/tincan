@@ -95,3 +95,5 @@ All notable changes to this project are tracked here.
 - Replaced static profile+logout controls with account menu button and dropdown actions (Profile, Settings, Accessibility, Logout)
 - Added center-pane account workspace with profile/settings/accessibility views
 - Added client-side accessibility preferences (text size + contrast) with first-login onboarding redirect
+- Adjusted accessibility text-size presets: compact 10px, comfortable 14px, large 18px
+- Added red/green colorblind-safe accessibility theme option (`rg-safe`) with blue/orange emphasis
