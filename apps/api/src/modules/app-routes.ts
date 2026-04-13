@@ -233,6 +233,55 @@ export async function registerAppRoutes(app: FastifyInstance) {
     return { user: result.rows[0] ?? null };
   });
 
+  app.get('/api/me/profile-photos', { preHandler: authGuard }, async (request) => {
+    const userId = request.authUser!.userId;
+    const result = await pool.query(
+      `
+      SELECT id, original_name, mime_type, public_url, created_at
+      FROM user_profile_photos
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT 80
+      `,
+      [userId]
+    );
+
+    return { photos: result.rows };
+  });
+
+  app.post('/api/me/profile-photos', { preHandler: authGuard }, async (request, reply) => {
+    const userId = request.authUser!.userId;
+    const part = await request.file();
+
+    if (!part) {
+      return reply.code(400).send({ error: 'Expected a file upload' });
+    }
+
+    if (!part.mimetype?.startsWith('image/')) {
+      return reply.code(400).send({ error: 'Profile photo must be an image' });
+    }
+
+    const safeName = part.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const key = `profile-${userId}-${Date.now()}-${randomUUID()}-${safeName}`;
+    const destination = resolve(process.cwd(), config.uploadsDir, key);
+
+    await mkdir(resolve(process.cwd(), config.uploadsDir), { recursive: true });
+    await pipeline(part.file, createWriteStream(destination));
+
+    const result = await pool.query(
+      `
+      INSERT INTO user_profile_photos (
+        user_id, original_name, mime_type, size_bytes, storage_path, public_url
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, original_name, mime_type, public_url, created_at
+      `,
+      [userId, part.filename, part.mimetype ?? 'application/octet-stream', part.file.bytesRead, key, `${config.uploadsBaseUrl}/${key}`]
+    );
+
+    return reply.code(201).send({ photo: result.rows[0] });
+  });
+
   const updateMeHandler = async (request: any, reply: any) => {
     const userId = request.authUser!.userId;
     const parsed = updateProfileSchema.safeParse(request.body);
@@ -1415,7 +1464,7 @@ export async function registerAppRoutes(app: FastifyInstance) {
              m.edited_at, m.created_at,
              u.handle AS author_handle,
              u.name AS author_name,
-             COALESCE(u.avatar_thumb_url, u.avatar_url) AS author_avatar_url,
+             COALESCE(NULLIF(u.avatar_thumb_url, ''), NULLIF(u.avatar_url, '')) AS author_avatar_url,
              (
                SELECT COUNT(*)::int
                FROM messages tm
@@ -1608,7 +1657,7 @@ export async function registerAppRoutes(app: FastifyInstance) {
              m.edited_at, m.created_at,
              u.handle AS author_handle,
              u.name AS author_name,
-             COALESCE(u.avatar_thumb_url, u.avatar_url) AS author_avatar_url,
+             COALESCE(NULLIF(u.avatar_thumb_url, ''), NULLIF(u.avatar_url, '')) AS author_avatar_url,
              COALESCE(
                (
                  SELECT json_agg(

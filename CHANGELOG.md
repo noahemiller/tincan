@@ -106,3 +106,6 @@ All notable changes to this project are tracked here.
 - Added compatibility aliases for profile updates (`PUT /api/me`, `POST /api/me/profile`) and shared handler
 - Added web fallback for profile save requests (`PATCH /api/me` -> `PUT /api/me` -> `POST /api/me/profile`)
 - Added author avatar metadata in message/thread payloads and rendered avatars in chat cards with initials fallback
+- Added server-hosted profile photo uploads (`/api/me/profile-photos`) and profile photo listing API
+- Expanded profile UI to upload photos and apply any listed photo as avatar (full + thumb)
+- Hardened avatar rendering with SQL empty-string guard and image-load fallback to initials

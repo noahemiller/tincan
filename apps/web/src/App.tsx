@@ -85,6 +85,14 @@ type LibraryItem = {
   created_at?: string;
 };
 
+type ProfilePhoto = {
+  id: string;
+  original_name: string;
+  mime_type: string;
+  public_url: string;
+  created_at: string;
+};
+
 const TOKEN_KEY = 'tincan_token';
 const REFRESH_TOKEN_KEY = 'tincan_refresh_token';
 const UI_PREFS_KEY = 'tincan_ui_prefs_v1';
@@ -138,6 +146,25 @@ function initialsFromName(name: string) {
   if (!trimmed) return '?';
   const parts = trimmed.split(/\s+/).slice(0, 2);
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || '?';
+}
+
+function AvatarCircle({
+  url,
+  name,
+  className,
+  fallbackClassName
+}: {
+  url?: string | null;
+  name: string;
+  className: string;
+  fallbackClassName: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const normalized = (url ?? '').trim();
+  if (!normalized || failed) {
+    return <span className={`${className} ${fallbackClassName}`}>{initialsFromName(name)}</span>;
+  }
+  return <img className={className} src={normalized} alt={`${name} avatar`} onError={() => setFailed(true)} />;
 }
 
 function getYouTubeEmbedUrl(rawUrl: string) {
@@ -382,6 +409,7 @@ export function App() {
     avatarThumbUrl: '',
     homeServerId: ''
   });
+  const [profileUploadedPhotos, setProfileUploadedPhotos] = useState<ProfilePhoto[]>([]);
   const [changePasswordForm, setChangePasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -423,6 +451,28 @@ export function App() {
         .slice(0, 24),
     [libraryItems, user?.id]
   );
+
+  const allProfilePhotoUrls = useMemo(() => {
+    const urls: { id: string; url: string }[] = [];
+    for (const photo of profileUploadedPhotos) {
+      if (photo.public_url) {
+        urls.push({ id: `upload-${photo.id}`, url: photo.public_url });
+      }
+    }
+    for (const item of profilePhotos) {
+      if (item.media_url) {
+        urls.push({ id: `library-${item.id}`, url: item.media_url });
+      }
+    }
+    const seen = new Set<string>();
+    return urls.filter((entry) => {
+      if (seen.has(entry.url)) {
+        return false;
+      }
+      seen.add(entry.url);
+      return true;
+    });
+  }, [profileUploadedPhotos, profilePhotos]);
 
   const libraryItemsById = useMemo(() => {
     const map = new Map<string, LibraryItem>();
@@ -746,6 +796,12 @@ export function App() {
         await loadServerAdminData(nextToken, firstServer.id);
         await loadLibraryAndCollections(nextToken, firstServer.id);
         await loadChannels(nextToken, firstServer.id);
+      }
+      try {
+        const photosResult = await api.profilePhotos(nextToken);
+        setProfileUploadedPhotos(photosResult.photos);
+      } catch {
+        setProfileUploadedPhotos([]);
       }
     } catch (cause) {
       if (refreshToken) {
@@ -1529,6 +1585,7 @@ export function App() {
     setServerCommands([]);
     setSelectedChannelId('');
     setSelectedServerId('');
+    setProfileUploadedPhotos([]);
   }
 
   async function onCreateUserCommand(event: FormEvent<HTMLFormElement>) {
@@ -1614,6 +1671,29 @@ export function App() {
       setError(cause instanceof Error ? cause.message : 'Failed to save profile');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onUploadProfilePhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file || !token) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      const result = await api.uploadProfilePhoto(token, file);
+      setProfileUploadedPhotos((prev) => [result.photo, ...prev]);
+      setProfileForm((prev) => ({
+        ...prev,
+        avatarUrl: result.photo.public_url,
+        avatarThumbUrl: result.photo.public_url
+      }));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Failed to upload profile photo');
+    } finally {
+      setBusy(false);
+      event.target.value = '';
     }
   }
 
@@ -2068,11 +2148,12 @@ export function App() {
           {messages.map((message) => (
             <article key={message.id} className="message">
               <div className="message-header">
-                {message.author_avatar_url ? (
-                  <img className="message-avatar" src={message.author_avatar_url} alt={`${message.author_name} avatar`} />
-                ) : (
-                  <span className="message-avatar message-avatar-fallback">{initialsFromName(message.author_name)}</span>
-                )}
+                <AvatarCircle
+                  url={message.author_avatar_url}
+                  name={message.author_name}
+                  className="message-avatar"
+                  fallbackClassName="message-avatar-fallback"
+                />
                 <div className="meta">
                   <strong>{message.author_name}</strong>
                   <span>@{message.author_handle}</span>
@@ -2572,6 +2653,10 @@ export function App() {
                         placeholder="Tell your friends who you are."
                       />
                     </label>
+                    <label className="account-grid-full">
+                      Upload profile photo (stored on server)
+                      <input type="file" accept="image/*" onChange={onUploadProfilePhoto} disabled={busy} />
+                    </label>
                   </div>
                   <div className="metadata-actions">
                     <button type="submit" disabled={busy}>
@@ -2581,14 +2666,26 @@ export function App() {
                 </form>
                 <div className="profile-photos">
                   <h4>Profile Photos</h4>
-                  <p className="panel-note">Images you posted to this server library (tagged by your user id).</p>
+                  <p className="panel-note">Server-stored uploads and your library images. Click one to set avatar fields.</p>
                   <div className="profile-photo-grid">
-                    {profilePhotos.map((item) => (
-                      <a key={item.id} href={item.media_url || '#'} target="_blank" rel="noreferrer">
-                        <img src={item.media_url || ''} alt={item.title || item.id} />
-                      </a>
+                    {allProfilePhotoUrls.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="profile-photo-tile"
+                        onClick={() =>
+                          setProfileForm((prev) => ({
+                            ...prev,
+                            avatarUrl: item.url,
+                            avatarThumbUrl: item.url
+                          }))
+                        }
+                      >
+                        <img src={item.url} alt="Profile option" />
+                        <span>Use as avatar</span>
+                      </button>
                     ))}
-                    {profilePhotos.length === 0 ? <span className="panel-note">No profile photos yet.</span> : null}
+                    {allProfilePhotoUrls.length === 0 ? <span className="panel-note">No profile photos yet.</span> : null}
                   </div>
                 </div>
               </article>
@@ -2790,11 +2887,12 @@ export function App() {
               {threadMessages.map((message) => (
                 <article key={message.id} className="thread-message">
                   <div className="thread-head">
-                    {message.author_avatar_url ? (
-                      <img className="thread-avatar" src={message.author_avatar_url} alt={`${message.author_name} avatar`} />
-                    ) : (
-                      <span className="thread-avatar thread-avatar-fallback">{initialsFromName(message.author_name)}</span>
-                    )}
+                    <AvatarCircle
+                      url={message.author_avatar_url}
+                      name={message.author_name}
+                      className="thread-avatar"
+                      fallbackClassName="thread-avatar-fallback"
+                    />
                     <strong>{message.author_name}</strong>
                   </div>
                   <p>{message.body}</p>

@@ -84,6 +84,19 @@ export const api = {
       }
       throw lastError ?? new Error('Failed to update profile');
     })(),
+  profilePhotos: (token: string) =>
+    request<{
+      photos: { id: string; original_name: string; mime_type: string; public_url: string; created_at: string }[];
+    }>('/api/me/profile-photos', {}, token),
+  uploadProfilePhoto: (token: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request<{ photo: { id: string; original_name: string; mime_type: string; public_url: string; created_at: string } }>(
+      '/api/me/profile-photos',
+      { method: 'POST', body: formData, headers: {} },
+      token
+    );
+  },
   servers: (token: string) =>
     request<{ servers: { id: string; name: string; slug: string; role: 'owner' | 'admin' | 'member' }[] }>(
       '/api/servers',

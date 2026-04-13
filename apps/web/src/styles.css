@@ -968,12 +968,23 @@ button.ghost {
   grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
 }
 
-.profile-photo-grid a {
-  display: block;
+.profile-photo-grid a,
+.profile-photo-tile {
+  display: grid;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.72);
+  text-decoration: none;
+  color: var(--text);
+  padding: 0;
+}
+
+.profile-photo-tile span {
+  font-size: 0.66rem;
+  padding: 0.2rem 0.25rem;
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.86);
 }
 
 .profile-photo-grid img {

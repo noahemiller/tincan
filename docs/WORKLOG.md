@@ -132,3 +132,6 @@
 - Updated web `updateMe` call to retry profile update methods/paths in compatibility order
 - Extended message + thread queries to include `author_avatar_url` (`COALESCE(avatar_thumb_url, avatar_url)`)
 - Added message/thread avatar UI in web app with initials fallback when no avatar is set
+- Added migration `0009_user_profile_photos.sql` for persistent server-side profile photo storage
+- Added authenticated profile photo GET/POST endpoints and upload handling to local uploads storage
+- Added profile photo chooser in account profile: uploaded + library images can populate avatar fields with one click
