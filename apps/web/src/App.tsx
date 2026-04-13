@@ -896,7 +896,13 @@ export function App() {
       setBusy(true);
       await api.reorderCollectionItems(token, selectedCollectionId, orderedIds);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Failed to save collection order');
+      const message = cause instanceof Error ? cause.message : 'Failed to save collection order';
+      const routeMissing = message.includes('Route PATCH') && message.includes('/items/order') && message.includes('not found');
+      if (routeMissing) {
+        setError('Drag order updated locally. Restart API to enable saved reorder (`/items/order`).');
+        return;
+      }
+      setError(message);
       try {
         const result = await api.collectionItems(token, selectedCollectionId);
         setCollectionItems(result.items);
@@ -917,10 +923,12 @@ export function App() {
     setSelectedLibraryItemIds([]);
   }
 
-  function onLibraryItemDragStart(itemId: string) {
+  function onLibraryItemDragStart(event: DragEvent<HTMLElement>, itemId: string) {
     if (!canReorderCollection) {
       return;
     }
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', itemId);
     setDraggingLibraryItemId(itemId);
   }
 
@@ -1700,7 +1708,7 @@ export function App() {
                     key={item.id}
                     onDragEnd={onLibraryItemDragEnd}
                     onDragOver={(event) => onLibraryItemDragOver(event, item.id)}
-                    onDragStart={() => onLibraryItemDragStart(item.id)}
+                    onDragStart={(event) => onLibraryItemDragStart(event, item.id)}
                     onDrop={(event) => void onLibraryItemDrop(event, item.id)}
                   >
                     <div className="library-card-head">

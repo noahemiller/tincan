@@ -34,6 +34,9 @@
 - Replaced ambiguous library scope dropdown with explicit mode buttons (`Browse Library` / `View Collection`)
 - Added mode-aware library context copy clarifying whether selection acts on all-library or inside a collection
 - Limited add/remove controls to relevant mode to avoid conflicting actions
+- Updated library item grid to 3 columns on desktop and single column on narrow screens
+- Reduced library thumbnail height and clamped title/description lines for denser cards
+- Added drag payload data + fallback handling when `PATCH /items/order` is not available (local reorder still applies)
 
 ## 2026-04-12
 

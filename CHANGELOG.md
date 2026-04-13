@@ -74,5 +74,7 @@ All notable changes to this project are tracked here.
 - Tightened `tincan-logo.svg` viewBox to artwork bounds and regenerated favicon assets from a tight crop so the tab icon renders larger
 - Reworked library controls into explicit modes (`Browse Library` vs `View Collection`) with contextual helper text
 - Made library actions mode-specific to reduce ambiguity (`Add Selected To Collection` only in browse mode, remove in collection mode)
+- Switched library cards to a compact 3-column grid layout on desktop with smaller thumbnails
+- Added drag-and-drop robustness updates (explicit drag payload and graceful fallback when reorder endpoint is unavailable)
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation
