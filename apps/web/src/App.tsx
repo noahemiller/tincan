@@ -298,6 +298,7 @@ export function App() {
   const [libraryTaxonomyFilter, setLibraryTaxonomyFilter] = useState<string>('all');
   const [libraryDateFrom, setLibraryDateFrom] = useState('');
   const [libraryDateTo, setLibraryDateTo] = useState('');
+  const [taxonomyQuickInput, setTaxonomyQuickInput] = useState('');
   const [editingLibraryItem, setEditingLibraryItem] = useState<LibraryItem | null>(null);
   const [metadataTitleDraft, setMetadataTitleDraft] = useState('');
   const [metadataDescriptionDraft, setMetadataDescriptionDraft] = useState('');
@@ -384,6 +385,10 @@ export function App() {
     [libraryScope, selectedCollectionId, enrichedCollectionItems, libraryItems]
   );
   const canReorderCollection = libraryScope === 'collection' && !!selectedCollectionId && librarySort === 'manual';
+  const selectedLibraryItems = useMemo(
+    () => activeLibraryItems.filter((item) => selectedLibraryItemIds.includes(item.id)),
+    [activeLibraryItems, selectedLibraryItemIds]
+  );
 
   const availablePosterFacets = useMemo(() => {
     const map = new Map<string, string>();
@@ -469,6 +474,25 @@ export function App() {
     librarySort,
     libraryScope
   ]);
+
+  const visibleTaxonomySuggestions = useMemo(() => {
+    const suggestions = new Set<string>();
+    const seedItems = [...selectedLibraryItems, ...filteredLibraryItems.slice(0, 10), ...activeLibraryItems.slice(0, 6)];
+    for (const seed of seedItems) {
+      for (const term of guessTaxonomySuggestions(seed)) {
+        suggestions.add(term.trim().toLowerCase());
+      }
+    }
+    for (const term of availableTaxonomyFacets.slice(0, 14)) {
+      suggestions.add(term);
+    }
+    if (suggestions.size === 0) {
+      for (const fallback of ['link', 'image', 'video', 'audio', 'music', 'article']) {
+        suggestions.add(fallback);
+      }
+    }
+    return [...suggestions].slice(0, 12);
+  }, [selectedLibraryItems, filteredLibraryItems, activeLibraryItems, availableTaxonomyFacets]);
 
   const galleryImages = useMemo(
     () =>
@@ -1090,6 +1114,71 @@ export function App() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onApplyTaxonomyTerm(termInput?: string) {
+    const term = (termInput ?? taxonomyQuickInput).trim().toLowerCase();
+    if (!term) {
+      return;
+    }
+
+    if (selectedLibraryItems.length === 0) {
+      setError('Select one or more library cards to apply a term, or use "Use As Filter".');
+      return;
+    }
+
+    await onApplyTaxonomyTermToItems(term, selectedLibraryItems);
+    setTaxonomyQuickInput('');
+  }
+
+  async function onApplyTaxonomyTermToFiltered() {
+    const term = taxonomyQuickInput.trim().toLowerCase();
+    if (!term || filteredLibraryItems.length === 0) {
+      return;
+    }
+    await onApplyTaxonomyTermToItems(term, filteredLibraryItems.slice(0, 100));
+    setTaxonomyQuickInput('');
+  }
+
+  async function onApplyTaxonomyTermToItems(term: string, items: LibraryItem[]) {
+    if (!token) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      for (const item of items) {
+        const mergedTerms = [...new Set([...(item.taxonomy_terms ?? []).map((value) => value.toLowerCase()), term])];
+        const result = await api.updateLibraryItem(token, item.id, { taxonomyTerms: mergedTerms });
+        const patch = result.item;
+        setLibraryItems((prev) =>
+          prev.map((entry) => (entry.id === item.id ? { ...entry, taxonomy_terms: patch.taxonomy_terms ?? [] } : entry))
+        );
+        setCollectionItems((prev) =>
+          prev.map((entry) => (entry.id === item.id ? { ...entry, taxonomy_terms: patch.taxonomy_terms ?? [] } : entry))
+        );
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Failed to apply taxonomy term');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function onUseTaxonomyTermAsFilter() {
+    const term = taxonomyQuickInput.trim().toLowerCase();
+    if (!term) {
+      return;
+    }
+    setLibraryTaxonomyFilter(term);
+  }
+
+  function onTaxonomySuggestionClick(term: string) {
+    if (selectedLibraryItems.length > 0) {
+      void onApplyTaxonomyTerm(term);
+      return;
+    }
+    setTaxonomyQuickInput(term);
   }
 
   function onClearLibrarySelection() {
@@ -1848,6 +1937,44 @@ export function App() {
               </select>
               <input type="date" value={libraryDateFrom} onChange={(event) => setLibraryDateFrom(event.target.value)} />
               <input type="date" value={libraryDateTo} onChange={(event) => setLibraryDateTo(event.target.value)} />
+              <input
+                placeholder="taxonomy term"
+                value={taxonomyQuickInput}
+                list="library-taxonomy-terms"
+                onChange={(event) => setTaxonomyQuickInput(event.target.value)}
+              />
+              <datalist id="library-taxonomy-terms">
+                {visibleTaxonomySuggestions.map((term) => (
+                  <option key={term} value={term} />
+                ))}
+                {availableTaxonomyFacets.map((term) => (
+                  <option key={`facet-${term}`} value={term} />
+                ))}
+              </datalist>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => void onApplyTaxonomyTerm()}
+                disabled={!taxonomyQuickInput.trim() || selectedLibraryItems.length === 0}
+              >
+                Apply Term To Selected ({selectedLibraryItems.length})
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => void onApplyTaxonomyTermToFiltered()}
+                disabled={!taxonomyQuickInput.trim() || filteredLibraryItems.length === 0}
+              >
+                Apply To Filtered ({Math.min(filteredLibraryItems.length, 100)})
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={onUseTaxonomyTermAsFilter}
+                disabled={!taxonomyQuickInput.trim()}
+              >
+                Use As Filter
+              </button>
               <select
                 value={librarySort}
                 onChange={(event) => setLibrarySort(event.target.value as 'newest' | 'oldest' | 'title' | 'manual')}
@@ -1901,6 +2028,18 @@ export function App() {
                   ? `Collection mode: viewing "${selectedCollection.name}" (${selectedCollection.visibility}). Remove and reorder act inside this collection.`
                   : 'Collection mode: pick a collection to view and curate.'}
             </p>
+            <div className="taxonomy-suggestions">
+              <span>Suggested terms:</span>
+              {visibleTaxonomySuggestions.length > 0 ? (
+                visibleTaxonomySuggestions.map((term) => (
+                  <button className="ghost mini" key={term} type="button" onClick={() => onTaxonomySuggestionClick(term)}>
+                    {term}
+                  </button>
+                ))
+              ) : (
+                <span className="panel-note">No suggestions yet.</span>
+              )}
+            </div>
             <div className="library-list">
               {canReorderCollection ? <p className="panel-note">Drag cards to reorder this collection.</p> : null}
               {filteredLibraryItems.slice(0, 100).map((item) => {

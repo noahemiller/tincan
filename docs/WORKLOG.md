@@ -43,6 +43,9 @@
 - Added librarian metadata editor UI with suggested taxonomy chips and save/cancel workflow
 - Added “Add Filtered To Collection” action to persist current filtered results to selected collection
 - Corrected library loading scope to server-wide data instead of selected-channel-only data
+- Added always-visible taxonomy quick input in library toolbar
+- Added one-click suggestion chip row in main library view (no modal required)
+- Added quick taxonomy behavior with explicit actions: apply to selected cards, apply to filtered cards, or set as facet filter
 
 ## 2026-04-12
 
@@ -107,3 +110,5 @@
 - Added Docker Compose for app + postgres + redis
 - Added API and setup docs plus version tracking
 - Validation status: runtime checks blocked in this environment (`docker`, `node`, and `pnpm` are unavailable in sandbox)
+- Refined vocabulary UX: explicit add-term actions (selected items vs filtered set) plus dedicated filter action
+- Added taxonomy autocomplete suggestion list and fallback vocabulary suggestions to keep suggest box populated

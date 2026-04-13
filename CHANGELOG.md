@@ -81,5 +81,9 @@ All notable changes to this project are tracked here.
 - Added server-wide library loading (no longer constrained by currently selected channel)
 - Added first-pass “Librarian Metadata” editor (title/description/taxonomy edits + suggestion chips)
 - Added “Add Filtered To Collection” action to save current filtered library view into a collection
+- Added persistent visible vocabulary tools in library toolbar (quick term apply + suggestion chips)
+- Added taxonomy quick-apply behavior with explicit selected-item targeting in the library toolbar
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation
+- Improved taxonomy quick-actions: explicit Apply to Selected, Apply to Filtered, and Use as Filter actions to remove ambiguous behavior
+- Added taxonomy autocomplete datalist from visible suggestions/facets and stronger fallback suggested vocabulary terms

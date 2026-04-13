@@ -756,6 +756,19 @@ button.ghost {
   margin-top: -0.1rem;
 }
 
+.taxonomy-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.taxonomy-suggestions > span:first-child {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
 .library-card {
   border: 1px solid var(--border);
   border-radius: 10px;
