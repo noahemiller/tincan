@@ -1018,6 +1018,61 @@ button.ghost {
   align-items: center;
 }
 
+.library-context-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(220px, 1fr) minmax(160px, 220px);
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.library-manage {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 0.42rem;
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.library-manage summary {
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.library-manage form {
+  margin-top: 0.45rem;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 180px auto;
+  gap: 0.45rem;
+}
+
+.library-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 0.55rem;
+}
+
+.library-find-panel,
+.library-actions-panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.56);
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.45rem;
+  align-content: start;
+}
+
+.library-find-panel h4,
+.library-actions-panel h4 {
+  margin: 0;
+}
+
+.library-assist {
+  display: grid;
+  gap: 0.3rem;
+}
+
 .library-mode-switch {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1321,6 +1376,12 @@ button.ghost {
   .chat-toolbar,
   .chat-search,
   .library-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .library-context-row,
+  .library-layout,
+  .library-manage form {
     grid-template-columns: 1fr;
   }
 

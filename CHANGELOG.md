@@ -111,3 +111,6 @@ All notable changes to this project are tracked here.
 - Hardened avatar rendering with SQL empty-string guard and image-load fallback to initials
 - Replaced rail navigation PNG icons with SVG assets (`icon-channels.svg`, `icon-dms.svg`, `icon-servers.svg`)
 - Added library facet filter by original source channel (`All channels` / specific `#channel`) in toolbar
+- Refactored Library UI into discrete task zones: context row, find panel, selection/actions panel, assist row, and item results
+- Moved collection creation into a collapsed "Manage Collections" section to reduce primary-workflow clutter
+- Added explicit "Reset Filters" action and grouped mode-specific actions in selection/actions panel

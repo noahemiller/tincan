@@ -1356,6 +1356,16 @@ export function App() {
     }
   }
 
+  function onResetLibraryFilters() {
+    setLibraryQuery('');
+    setLibraryPosterFilter('all');
+    setLibraryChannelFilter('all');
+    setLibraryTypeFilter('all');
+    setLibraryTaxonomyFilter('all');
+    setLibraryDateFrom('');
+    setLibraryDateTo('');
+  }
+
   async function onApplyTaxonomyTerm(termInput?: string) {
     const term = (termInput ?? taxonomyQuickInput).trim().toLowerCase();
     if (!term) {
@@ -2297,22 +2307,7 @@ export function App() {
               <h3>Library</h3>
               <p>{filteredLibraryItems.length} item(s) in view</p>
             </header>
-            <form autoComplete="off" onSubmit={onCreateCollection}>
-              <input
-                placeholder="New collection name"
-                value={collectionName}
-                onChange={(event) => setCollectionName(event.target.value)}
-              />
-              <select
-                value={collectionVisibility}
-                onChange={(event) => setCollectionVisibility(event.target.value as 'private' | 'public')}
-              >
-                <option value="private">Private</option>
-                <option value="public">Public</option>
-              </select>
-              <button type="submit">Create Collection</button>
-            </form>
-            <div className="library-toolbar">
+            <div className="library-context-row">
               <select value={selectedCollectionId} onChange={(event) => setSelectedCollectionId(event.target.value)}>
                 <option value="">Select collection</option>
                 {collections.map((collection) => (
@@ -2338,96 +2333,6 @@ export function App() {
                   View Collection
                 </button>
               </div>
-              <button
-                type="button"
-                className="ghost"
-                onClick={onSelectAllFilteredLibraryItems}
-                disabled={filteredLibraryItems.length === 0}
-              >
-                Select Filtered
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                onClick={onClearLibrarySelection}
-                disabled={selectedLibraryItemIds.length === 0}
-              >
-                Clear Selection ({selectedLibraryItemIds.length})
-              </button>
-              <input
-                placeholder="Filter library"
-                value={libraryQuery}
-                onChange={(event) => setLibraryQuery(event.target.value)}
-              />
-              <select value={libraryPosterFilter} onChange={(event) => setLibraryPosterFilter(event.target.value)}>
-                <option value="all">All posters</option>
-                {availablePosterFacets.map((poster) => (
-                  <option key={poster.id} value={poster.id}>
-                    @{poster.label}
-                  </option>
-                ))}
-              </select>
-              <select value={libraryChannelFilter} onChange={(event) => setLibraryChannelFilter(event.target.value)}>
-                <option value="all">All channels</option>
-                {availableChannelFacets.map((channelName) => (
-                  <option key={channelName} value={channelName}>
-                    #{channelName}
-                  </option>
-                ))}
-              </select>
-              <select value={libraryTypeFilter} onChange={(event) => setLibraryTypeFilter(event.target.value as 'all' | 'url' | 'media')}>
-                <option value="all">All types</option>
-                <option value="url">Links</option>
-                <option value="media">Media</option>
-              </select>
-              <select value={libraryTaxonomyFilter} onChange={(event) => setLibraryTaxonomyFilter(event.target.value)}>
-                <option value="all">All taxonomy</option>
-                {availableTaxonomyFacets.map((term) => (
-                  <option key={term} value={term}>
-                    {term}
-                  </option>
-                ))}
-              </select>
-              <input type="date" value={libraryDateFrom} onChange={(event) => setLibraryDateFrom(event.target.value)} />
-              <input type="date" value={libraryDateTo} onChange={(event) => setLibraryDateTo(event.target.value)} />
-              <input
-                placeholder="taxonomy term"
-                value={taxonomyQuickInput}
-                list="library-taxonomy-terms"
-                onChange={(event) => setTaxonomyQuickInput(event.target.value)}
-              />
-              <datalist id="library-taxonomy-terms">
-                {visibleTaxonomySuggestions.map((term) => (
-                  <option key={term} value={term} />
-                ))}
-                {availableTaxonomyFacets.map((term) => (
-                  <option key={`facet-${term}`} value={term} />
-                ))}
-              </datalist>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => void onApplyTaxonomyTerm()}
-                disabled={!taxonomyQuickInput.trim() || selectedLibraryItems.length === 0}
-              >
-                Apply Term To Selected ({selectedLibraryItems.length})
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => void onApplyTaxonomyTermToFiltered()}
-                disabled={!taxonomyQuickInput.trim() || filteredLibraryItems.length === 0}
-              >
-                Apply To Filtered ({Math.min(filteredLibraryItems.length, 100)})
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                onClick={onUseTaxonomyTermAsFilter}
-                disabled={!taxonomyQuickInput.trim()}
-              >
-                Use As Filter
-              </button>
               <select
                 value={librarySort}
                 onChange={(event) => setLibrarySort(event.target.value as 'newest' | 'oldest' | 'title' | 'manual')}
@@ -2443,55 +2348,185 @@ export function App() {
                   Manual order
                 </option>
               </select>
-              {libraryScope === 'all' ? (
-                <>
+            </div>
+
+            <details className="library-manage">
+              <summary>Manage Collections</summary>
+              <form autoComplete="off" onSubmit={onCreateCollection}>
+                <input
+                  placeholder="New collection name"
+                  value={collectionName}
+                  onChange={(event) => setCollectionName(event.target.value)}
+                />
+                <select
+                  value={collectionVisibility}
+                  onChange={(event) => setCollectionVisibility(event.target.value as 'private' | 'public')}
+                >
+                  <option value="private">Private</option>
+                  <option value="public">Public</option>
+                </select>
+                <button type="submit">Create Collection</button>
+              </form>
+            </details>
+
+            <div className="library-layout">
+              <section className="library-find-panel">
+                <h4>Find Items</h4>
+                <div className="library-toolbar">
+                  <input
+                    placeholder="Filter library"
+                    value={libraryQuery}
+                    onChange={(event) => setLibraryQuery(event.target.value)}
+                  />
+                  <select value={libraryPosterFilter} onChange={(event) => setLibraryPosterFilter(event.target.value)}>
+                    <option value="all">All posters</option>
+                    {availablePosterFacets.map((poster) => (
+                      <option key={poster.id} value={poster.id}>
+                        @{poster.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select value={libraryChannelFilter} onChange={(event) => setLibraryChannelFilter(event.target.value)}>
+                    <option value="all">All channels</option>
+                    {availableChannelFacets.map((channelName) => (
+                      <option key={channelName} value={channelName}>
+                        #{channelName}
+                      </option>
+                    ))}
+                  </select>
+                  <select value={libraryTypeFilter} onChange={(event) => setLibraryTypeFilter(event.target.value as 'all' | 'url' | 'media')}>
+                    <option value="all">All types</option>
+                    <option value="url">Links</option>
+                    <option value="media">Media</option>
+                  </select>
+                  <select value={libraryTaxonomyFilter} onChange={(event) => setLibraryTaxonomyFilter(event.target.value)}>
+                    <option value="all">All taxonomy</option>
+                    {availableTaxonomyFacets.map((term) => (
+                      <option key={term} value={term}>
+                        {term}
+                      </option>
+                    ))}
+                  </select>
+                  <input type="date" value={libraryDateFrom} onChange={(event) => setLibraryDateFrom(event.target.value)} />
+                  <input type="date" value={libraryDateTo} onChange={(event) => setLibraryDateTo(event.target.value)} />
+                  <button type="button" className="ghost" onClick={onResetLibraryFilters}>
+                    Reset Filters
+                  </button>
+                </div>
+              </section>
+
+              <section className="library-actions-panel">
+                <h4>Selection & Actions</h4>
+                <p className="panel-note">{selectedLibraryItemIds.length} selected</p>
+                <div className="library-toolbar">
                   <button
                     type="button"
-                    onClick={() => void onAddSelectedToCollection()}
-                    disabled={!selectedCollectionId || selectedLibraryItemIds.length === 0}
+                    className="ghost"
+                    onClick={onSelectAllFilteredLibraryItems}
+                    disabled={filteredLibraryItems.length === 0}
                   >
-                    Add Selected To Collection
+                    Select Filtered
                   </button>
                   <button
                     type="button"
                     className="ghost"
-                    onClick={() => void onAddFilteredToCollection()}
-                    disabled={!selectedCollectionId || filteredLibraryItems.length === 0}
+                    onClick={onClearLibrarySelection}
+                    disabled={selectedLibraryItemIds.length === 0}
                   >
-                    Add Filtered To Collection
+                    Clear Selection ({selectedLibraryItemIds.length})
                   </button>
-                </>
-              ) : (
-                <button
-                  className="ghost"
-                  type="button"
-                  onClick={() => void onRemoveSelectedFromCollection()}
-                  disabled={!selectedCollectionId || selectedLibraryItemIds.length === 0}
-                >
-                  Remove Selected From Collection
-                </button>
-              )}
+                  <input
+                    placeholder="taxonomy term"
+                    value={taxonomyQuickInput}
+                    list="library-taxonomy-terms"
+                    onChange={(event) => setTaxonomyQuickInput(event.target.value)}
+                  />
+                  <datalist id="library-taxonomy-terms">
+                    {visibleTaxonomySuggestions.map((term) => (
+                      <option key={term} value={term} />
+                    ))}
+                    {availableTaxonomyFacets.map((term) => (
+                      <option key={`facet-${term}`} value={term} />
+                    ))}
+                  </datalist>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => void onApplyTaxonomyTerm()}
+                    disabled={!taxonomyQuickInput.trim() || selectedLibraryItems.length === 0}
+                  >
+                    Apply Term To Selected ({selectedLibraryItems.length})
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => void onApplyTaxonomyTermToFiltered()}
+                    disabled={!taxonomyQuickInput.trim() || filteredLibraryItems.length === 0}
+                  >
+                    Apply To Filtered ({Math.min(filteredLibraryItems.length, 100)})
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={onUseTaxonomyTermAsFilter}
+                    disabled={!taxonomyQuickInput.trim()}
+                  >
+                    Use As Filter
+                  </button>
+                  {libraryScope === 'all' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void onAddSelectedToCollection()}
+                        disabled={!selectedCollectionId || selectedLibraryItemIds.length === 0}
+                      >
+                        Add Selected To Collection
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() => void onAddFilteredToCollection()}
+                        disabled={!selectedCollectionId || filteredLibraryItems.length === 0}
+                      >
+                        Add Filtered To Collection
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="ghost"
+                      type="button"
+                      onClick={() => void onRemoveSelectedFromCollection()}
+                      disabled={!selectedCollectionId || selectedLibraryItemIds.length === 0}
+                    >
+                      Remove Selected From Collection
+                    </button>
+                  )}
+                </div>
+              </section>
             </div>
-            <p className="panel-note library-context-note">
-              {libraryScope === 'all'
-                ? selectedCollection
-                  ? `Browse mode: selecting items from all library. Add actions target "${selectedCollection.name}".`
-                  : 'Browse mode: select a target collection to add items.'
-                : selectedCollection
-                  ? `Collection mode: viewing "${selectedCollection.name}" (${selectedCollection.visibility}). Remove and reorder act inside this collection.`
-                  : 'Collection mode: pick a collection to view and curate.'}
-            </p>
-            <div className="taxonomy-suggestions">
-              <span>Suggested terms:</span>
-              {visibleTaxonomySuggestions.length > 0 ? (
-                visibleTaxonomySuggestions.map((term) => (
-                  <button className="ghost mini" key={term} type="button" onClick={() => onTaxonomySuggestionClick(term)}>
-                    {term}
-                  </button>
-                ))
-              ) : (
-                <span className="panel-note">No suggestions yet.</span>
-              )}
+
+            <div className="library-assist">
+              <p className="panel-note library-context-note">
+                {libraryScope === 'all'
+                  ? selectedCollection
+                    ? `Browse mode: selecting items from all library. Add actions target "${selectedCollection.name}".`
+                    : 'Browse mode: select a target collection to add items.'
+                  : selectedCollection
+                    ? `Collection mode: viewing "${selectedCollection.name}" (${selectedCollection.visibility}). Remove and reorder act inside this collection.`
+                    : 'Collection mode: pick a collection to view and curate.'}
+              </p>
+              <div className="taxonomy-suggestions">
+                <span>Suggested terms:</span>
+                {visibleTaxonomySuggestions.length > 0 ? (
+                  visibleTaxonomySuggestions.map((term) => (
+                    <button className="ghost mini" key={term} type="button" onClick={() => onTaxonomySuggestionClick(term)}>
+                      {term}
+                    </button>
+                  ))
+                ) : (
+                  <span className="panel-note">No suggestions yet.</span>
+                )}
+              </div>
             </div>
             <div className="library-list">
               {canReorderCollection ? <p className="panel-note">Drag cards to reorder this collection.</p> : null}
