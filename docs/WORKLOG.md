@@ -135,3 +135,4 @@
 - Added migration `0009_user_profile_photos.sql` for persistent server-side profile photo storage
 - Added authenticated profile photo GET/POST endpoints and upload handling to local uploads storage
 - Added profile photo chooser in account profile: uploaded + library images can populate avatar fields with one click
+- Copied user-provided SVG nav icons into web public assets and switched rail icon references from PNG to SVG

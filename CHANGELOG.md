@@ -109,3 +109,4 @@ All notable changes to this project are tracked here.
 - Added server-hosted profile photo uploads (`/api/me/profile-photos`) and profile photo listing API
 - Expanded profile UI to upload photos and apply any listed photo as avatar (full + thumb)
 - Hardened avatar rendering with SQL empty-string guard and image-load fallback to initials
+- Replaced rail navigation PNG icons with SVG assets (`icon-channels.svg`, `icon-dms.svg`, `icon-servers.svg`)

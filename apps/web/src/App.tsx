@@ -1842,7 +1842,7 @@ export function App() {
             onClick={() => setLeftRailTab('channels')}
             type="button"
           >
-            <img className="rail-icon" src="/icon-channels.png" alt="" />
+            <img className="rail-icon" src="/icon-channels.svg" alt="" />
           </button>
           <button
             aria-label="Direct messages"
@@ -1850,7 +1850,7 @@ export function App() {
             onClick={() => setLeftRailTab('dms')}
             type="button"
           >
-            <img className="rail-icon" src="/icon-dms.png" alt="" />
+            <img className="rail-icon" src="/icon-dms.svg" alt="" />
           </button>
           <button
             aria-label="Servers"
@@ -1858,7 +1858,7 @@ export function App() {
             onClick={() => setLeftRailTab('servers')}
             type="button"
           >
-            <img className="rail-icon" src="/icon-servers.png" alt="" />
+            <img className="rail-icon" src="/icon-servers.svg" alt="" />
           </button>
         </nav>
       </aside>
