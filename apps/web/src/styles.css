@@ -744,6 +744,16 @@ button.ghost {
   align-items: center;
 }
 
+.library-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+}
+
+.library-context-note {
+  margin-top: -0.1rem;
+}
+
 .library-card {
   border: 1px solid var(--border);
   border-radius: 10px;

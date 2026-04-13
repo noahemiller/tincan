@@ -29,6 +29,11 @@
 - Updated `index.html` favicon declaration to prefer SVG icon with existing `.ico` fallback
 - Removed border/background box styling from rail logo and increased brand mark height to 64px
 - Removed the full-canvas white background path from `apps/web/public/tincan-logo.svg`
+- Computed artwork bounds and tightened SVG `viewBox` to reduce empty space around the logo
+- Regenerated `favicon.ico`, `favicon-192.png`, and `favicon-512.png` from tightly cropped logo source
+- Replaced ambiguous library scope dropdown with explicit mode buttons (`Browse Library` / `View Collection`)
+- Added mode-aware library context copy clarifying whether selection acts on all-library or inside a collection
+- Limited add/remove controls to relevant mode to avoid conflicting actions
 
 ## 2026-04-12
 

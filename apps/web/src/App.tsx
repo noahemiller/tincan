@@ -281,6 +281,10 @@ export function App() {
     () => channels.find((channel) => channel.id === selectedChannelId) ?? null,
     [channels, selectedChannelId]
   );
+  const selectedCollection = useMemo(
+    () => collections.find((collection) => collection.id === selectedCollectionId) ?? null,
+    [collections, selectedCollectionId]
+  );
 
   const unreadCountByChannel = useMemo(() => {
     const map = new Map<string, number>();
@@ -1594,12 +1598,23 @@ export function App() {
                   </option>
                 ))}
               </select>
-              <select value={libraryScope} onChange={(event) => setLibraryScope(event.target.value as 'all' | 'collection')}>
-                <option value="all">All library</option>
-                <option value="collection" disabled={!selectedCollectionId}>
-                  Selected collection
-                </option>
-              </select>
+              <div className="library-mode-switch">
+                <button
+                  type="button"
+                  className={libraryScope === 'all' ? '' : 'ghost'}
+                  onClick={() => setLibraryScope('all')}
+                >
+                  Browse Library
+                </button>
+                <button
+                  type="button"
+                  className={libraryScope === 'collection' ? '' : 'ghost'}
+                  disabled={!selectedCollectionId}
+                  onClick={() => setLibraryScope('collection')}
+                >
+                  View Collection
+                </button>
+              </div>
               <button
                 type="button"
                 className="ghost"
@@ -1641,22 +1656,34 @@ export function App() {
                   Manual order
                 </option>
               </select>
-              <button
-                type="button"
-                onClick={() => void onAddSelectedToCollection()}
-                disabled={!selectedCollectionId || selectedLibraryItemIds.length === 0}
-              >
-                Add Selected
-              </button>
-              <button
-                className="ghost"
-                type="button"
-                onClick={() => void onRemoveSelectedFromCollection()}
-                disabled={!selectedCollectionId || libraryScope !== 'collection' || selectedLibraryItemIds.length === 0}
-              >
-                Remove Selected
-              </button>
+              {libraryScope === 'all' ? (
+                <button
+                  type="button"
+                  onClick={() => void onAddSelectedToCollection()}
+                  disabled={!selectedCollectionId || selectedLibraryItemIds.length === 0}
+                >
+                  Add Selected To Collection
+                </button>
+              ) : (
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => void onRemoveSelectedFromCollection()}
+                  disabled={!selectedCollectionId || selectedLibraryItemIds.length === 0}
+                >
+                  Remove Selected From Collection
+                </button>
+              )}
             </div>
+            <p className="panel-note library-context-note">
+              {libraryScope === 'all'
+                ? selectedCollection
+                  ? `Browse mode: selecting items from all library. Add actions target "${selectedCollection.name}".`
+                  : 'Browse mode: select a target collection to add items.'
+                : selectedCollection
+                  ? `Collection mode: viewing "${selectedCollection.name}" (${selectedCollection.visibility}). Remove and reorder act inside this collection.`
+                  : 'Collection mode: pick a collection to view and curate.'}
+            </p>
             <div className="library-list">
               {canReorderCollection ? <p className="panel-note">Drag cards to reorder this collection.</p> : null}
               {filteredLibraryItems.slice(0, 100).map((item) => {

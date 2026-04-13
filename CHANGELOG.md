@@ -71,5 +71,8 @@ All notable changes to this project are tracked here.
 - Switched app logo references to SVG (`tincan-logo.svg`) and enabled SVG favicon preference with ICO fallback
 - Restyled rail logo as standalone branding (no boxed/button chrome) and increased logo size for clearer separation from nav buttons
 - Removed the white background shape from `tincan-logo.svg` to preserve transparency
+- Tightened `tincan-logo.svg` viewBox to artwork bounds and regenerated favicon assets from a tight crop so the tab icon renders larger
+- Reworked library controls into explicit modes (`Browse Library` vs `View Collection`) with contextual helper text
+- Made library actions mode-specific to reduce ambiguity (`Add Selected To Collection` only in browse mode, remove in collection mode)
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation
