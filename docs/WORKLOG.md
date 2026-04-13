@@ -128,3 +128,5 @@
 - Added migration `0008_password_reset_tokens.sql` for secure password recovery tokens
 - Implemented auth routes for change-password and forgot/reset-password with token hashing and expiry checks
 - Added web forms for forgot/reset on login screen and change-password in account settings
+- Added `/api/me` method aliases and `/api/me/profile` endpoint to avoid profile-save failures in mixed runtime setups
+- Updated web `updateMe` call to retry profile update methods/paths in compatibility order

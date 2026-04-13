@@ -233,7 +233,7 @@ export async function registerAppRoutes(app: FastifyInstance) {
     return { user: result.rows[0] ?? null };
   });
 
-  app.patch('/api/me', { preHandler: authGuard }, async (request, reply) => {
+  const updateMeHandler = async (request: any, reply: any) => {
     const userId = request.authUser!.userId;
     const parsed = updateProfileSchema.safeParse(request.body);
 
@@ -305,7 +305,11 @@ export async function registerAppRoutes(app: FastifyInstance) {
       request.log.error(error);
       return reply.code(409).send({ error: 'Email or handle already in use' });
     }
-  });
+  };
+
+  app.patch('/api/me', { preHandler: authGuard }, updateMeHandler);
+  app.put('/api/me', { preHandler: authGuard }, updateMeHandler);
+  app.post('/api/me/profile', { preHandler: authGuard }, updateMeHandler);
 
   app.post('/api/servers', { preHandler: authGuard }, async (request, reply) => {
     const parsed = createServerSchema.safeParse(request.body);

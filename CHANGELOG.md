@@ -103,3 +103,5 @@ All notable changes to this project are tracked here.
 - Added password change flow for logged-in users (`POST /api/auth/change-password`) and session revocation on change
 - Added password recovery flow (`POST /api/auth/forgot-password` + `POST /api/auth/reset-password`) with one-time expiring reset tokens
 - Added auth UI for forgot/reset password and account settings UI for in-session password updates
+- Added compatibility aliases for profile updates (`PUT /api/me`, `POST /api/me/profile`) and shared handler
+- Added web fallback for profile save requests (`PATCH /api/me` -> `PUT /api/me` -> `POST /api/me/profile`)

@@ -66,7 +66,24 @@ export const api = {
       avatarThumbUrl?: string | null;
       homeServerId?: string | null;
     }
-  ) => request<{ user: AuthResult['user'] }>('/api/me', { method: 'PATCH', body: JSON.stringify(payload) }, token),
+  ) =>
+    (async () => {
+      const body = JSON.stringify(payload);
+      const attempts: { path: string; method: 'PATCH' | 'PUT' | 'POST' }[] = [
+        { path: '/api/me', method: 'PATCH' },
+        { path: '/api/me', method: 'PUT' },
+        { path: '/api/me/profile', method: 'POST' }
+      ];
+      let lastError: Error | null = null;
+      for (const attempt of attempts) {
+        try {
+          return await request<{ user: AuthResult['user'] }>(attempt.path, { method: attempt.method, body }, token);
+        } catch (cause) {
+          lastError = cause instanceof Error ? cause : new Error('Failed to update profile');
+        }
+      }
+      throw lastError ?? new Error('Failed to update profile');
+    })(),
   servers: (token: string) =>
     request<{ servers: { id: string; name: string; slug: string; role: 'owner' | 'admin' | 'member' }[] }>(
       '/api/servers',
