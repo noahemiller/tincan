@@ -130,3 +130,5 @@
 - Added web forms for forgot/reset on login screen and change-password in account settings
 - Added `/api/me` method aliases and `/api/me/profile` endpoint to avoid profile-save failures in mixed runtime setups
 - Updated web `updateMe` call to retry profile update methods/paths in compatibility order
+- Extended message + thread queries to include `author_avatar_url` (`COALESCE(avatar_thumb_url, avatar_url)`)
+- Added message/thread avatar UI in web app with initials fallback when no avatar is set

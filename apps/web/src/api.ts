@@ -161,6 +161,7 @@ export const api = {
         thread_reply_count?: number;
         author_handle: string;
         author_name: string;
+        author_avatar_url?: string | null;
         created_at: string;
         reactions: { emoji: string; count: number }[];
         attachments: { id: string; mime_type: string; original_name: string; public_url: string }[];
@@ -193,6 +194,7 @@ export const api = {
         body: string;
         author_handle: string;
         author_name: string;
+        author_avatar_url?: string | null;
         created_at: string;
         attachments: { id: string; mime_type: string; original_name: string; public_url: string }[];
       }[];

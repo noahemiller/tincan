@@ -35,6 +35,7 @@ type Message = {
   thread_reply_count?: number;
   author_handle: string;
   author_name: string;
+  author_avatar_url?: string | null;
   created_at: string;
   reactions: { emoji: string; count: number }[];
   attachments: { id: string; mime_type: string; original_name: string; public_url: string }[];
@@ -45,6 +46,7 @@ type ThreadMessage = {
   body: string;
   author_handle: string;
   author_name: string;
+  author_avatar_url?: string | null;
   created_at: string;
   attachments: { id: string; mime_type: string; original_name: string; public_url: string }[];
 };
@@ -129,6 +131,13 @@ function decodeHtmlEntities(value?: string | null) {
   const textarea = document.createElement('textarea');
   textarea.innerHTML = value;
   return textarea.value;
+}
+
+function initialsFromName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return '?';
+  const parts = trimmed.split(/\s+/).slice(0, 2);
+  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || '?';
 }
 
 function getYouTubeEmbedUrl(rawUrl: string) {
@@ -2058,10 +2067,17 @@ export function App() {
           <div className="messages">
           {messages.map((message) => (
             <article key={message.id} className="message">
-              <div className="meta">
-                <strong>{message.author_name}</strong>
-                <span>@{message.author_handle}</span>
-                <time>{new Date(message.created_at).toLocaleString()}</time>
+              <div className="message-header">
+                {message.author_avatar_url ? (
+                  <img className="message-avatar" src={message.author_avatar_url} alt={`${message.author_name} avatar`} />
+                ) : (
+                  <span className="message-avatar message-avatar-fallback">{initialsFromName(message.author_name)}</span>
+                )}
+                <div className="meta">
+                  <strong>{message.author_name}</strong>
+                  <span>@{message.author_handle}</span>
+                  <time>{new Date(message.created_at).toLocaleString()}</time>
+                </div>
               </div>
               <p>{message.body}</p>
               {extractUrls(message.body).length > 0 ? (
@@ -2773,7 +2789,14 @@ export function App() {
             <div className="thread-list">
               {threadMessages.map((message) => (
                 <article key={message.id} className="thread-message">
-                  <strong>{message.author_name}</strong>
+                  <div className="thread-head">
+                    {message.author_avatar_url ? (
+                      <img className="thread-avatar" src={message.author_avatar_url} alt={`${message.author_name} avatar`} />
+                    ) : (
+                      <span className="thread-avatar thread-avatar-fallback">{initialsFromName(message.author_name)}</span>
+                    )}
+                    <strong>{message.author_name}</strong>
+                  </div>
                   <p>{message.body}</p>
                 </article>
               ))}

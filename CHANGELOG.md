@@ -105,3 +105,4 @@ All notable changes to this project are tracked here.
 - Added auth UI for forgot/reset password and account settings UI for in-session password updates
 - Added compatibility aliases for profile updates (`PUT /api/me`, `POST /api/me/profile`) and shared handler
 - Added web fallback for profile save requests (`PATCH /api/me` -> `PUT /api/me` -> `POST /api/me/profile`)
+- Added author avatar metadata in message/thread payloads and rendered avatars in chat cards with initials fallback

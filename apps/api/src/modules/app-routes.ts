@@ -1415,6 +1415,7 @@ export async function registerAppRoutes(app: FastifyInstance) {
              m.edited_at, m.created_at,
              u.handle AS author_handle,
              u.name AS author_name,
+             COALESCE(u.avatar_thumb_url, u.avatar_url) AS author_avatar_url,
              (
                SELECT COUNT(*)::int
                FROM messages tm
@@ -1607,6 +1608,7 @@ export async function registerAppRoutes(app: FastifyInstance) {
              m.edited_at, m.created_at,
              u.handle AS author_handle,
              u.name AS author_name,
+             COALESCE(u.avatar_thumb_url, u.avatar_url) AS author_avatar_url,
              COALESCE(
                (
                  SELECT json_agg(
