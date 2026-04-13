@@ -1694,7 +1694,10 @@ export function App() {
             </button>
           </div>
         </header>
-        {channelSettingsOpen ? (
+        <div
+          className={`channel-settings-accordion${channelSettingsOpen ? ' open' : ''}`}
+          aria-hidden={!channelSettingsOpen}
+        >
           <form autoComplete="off" className="channel-settings-panel" onSubmit={onSaveChannelPreference}>
             <label>
               Mode
@@ -1720,7 +1723,7 @@ export function App() {
               Save
             </button>
           </form>
-        ) : null}
+        </div>
 
         {centerPane === 'chat' ? (
           <div className="messages">

@@ -365,7 +365,6 @@ button.ghost {
   grid-template-columns: 1fr 1fr auto;
   gap: 0.45rem;
   padding: 0.6rem 0.65rem;
-  border-bottom: 1px solid var(--border);
   align-items: end;
   background: rgba(255, 255, 255, 0.45);
 }
@@ -380,6 +379,25 @@ button.ghost {
 .channel-settings-panel button {
   height: 34px;
   align-self: end;
+}
+
+.channel-settings-accordion {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-bottom: 1px solid transparent;
+  transition:
+    max-height 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease,
+    border-color 200ms ease;
+}
+
+.channel-settings-accordion.open {
+  max-height: 160px;
+  opacity: 1;
+  pointer-events: auto;
+  border-bottom-color: var(--border);
 }
 
 .chat-toolbar {
@@ -1029,6 +1047,10 @@ button.ghost {
 
   .channel-settings-panel {
     grid-template-columns: 1fr;
+  }
+
+  .channel-settings-accordion.open {
+    max-height: 260px;
   }
 
   .chat-toolbar,
