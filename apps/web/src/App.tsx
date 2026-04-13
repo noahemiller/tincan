@@ -306,7 +306,7 @@ export function App() {
   const [accountView, setAccountView] = useState<'profile' | 'settings' | 'accessibility'>('profile');
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
-  const [leftRailTab, setLeftRailTab] = useState<'servers' | 'dms' | 'channels'>('servers');
+  const [leftRailTab, setLeftRailTab] = useState<'servers' | 'dms' | 'channels'>('channels');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [linkPreviews, setLinkPreviews] = useState<Record<string, LinkPreview>>({});
   const [searchQuery, setSearchQuery] = useState('');
