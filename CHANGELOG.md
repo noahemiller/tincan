@@ -92,3 +92,6 @@ All notable changes to this project are tracked here.
 - Improved metadata editor draft rendering by decoding HTML entities in title/description fields
 - Added clear runtime guidance when all metadata update route aliases return 404 (API restart/rebuild required)
 - Fixed API TypeScript route handler signature mismatch that prevented container startup for library metadata aliases
+- Replaced static profile+logout controls with account menu button and dropdown actions (Profile, Settings, Accessibility, Logout)
+- Added center-pane account workspace with profile/settings/accessibility views
+- Added client-side accessibility preferences (text size + contrast) with first-login onboarding redirect

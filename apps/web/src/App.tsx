@@ -1,4 +1,4 @@
-import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { api } from './api';
 
@@ -81,6 +81,34 @@ type LibraryItem = {
 
 const TOKEN_KEY = 'tincan_token';
 const REFRESH_TOKEN_KEY = 'tincan_refresh_token';
+const UI_PREFS_KEY = 'tincan_ui_prefs_v1';
+
+type UiPrefs = {
+  textSize: 'compact' | 'comfortable' | 'large';
+  contrast: 'default' | 'high' | 'soft';
+  onboarded: boolean;
+};
+
+function loadUiPrefs(): UiPrefs {
+  const fallback: UiPrefs = { textSize: 'comfortable', contrast: 'default', onboarded: false };
+  try {
+    const raw = localStorage.getItem(UI_PREFS_KEY);
+    if (!raw) {
+      return fallback;
+    }
+    const parsed = JSON.parse(raw) as Partial<UiPrefs>;
+    if (!parsed || typeof parsed !== 'object') {
+      return fallback;
+    }
+    return {
+      textSize: parsed.textSize === 'compact' || parsed.textSize === 'large' ? parsed.textSize : 'comfortable',
+      contrast: parsed.contrast === 'high' || parsed.contrast === 'soft' ? parsed.contrast : 'default',
+      onboarded: parsed.onboarded === true
+    };
+  } catch {
+    return fallback;
+  }
+}
 
 function extractUrls(text: string) {
   const matches = text.match(/https?:\/\/[^\s<>"')]+/g) ?? [];
@@ -274,7 +302,9 @@ export function App() {
   const [channelMode, setChannelMode] = useState<'hidden' | 'passive' | 'active'>('passive');
   const [channelSnoozeHours, setChannelSnoozeHours] = useState('0');
   const [channelSettingsOpen, setChannelSettingsOpen] = useState(false);
-  const [centerPane, setCenterPane] = useState<'chat' | 'library'>('chat');
+  const [centerPane, setCenterPane] = useState<'chat' | 'library' | 'account'>('chat');
+  const [accountView, setAccountView] = useState<'profile' | 'settings' | 'accessibility'>('profile');
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [leftRailTab, setLeftRailTab] = useState<'servers' | 'dms' | 'channels'>('servers');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -324,6 +354,8 @@ export function App() {
   const [serverCommands, setServerCommands] = useState<Command[]>([]);
   const [userCommandForm, setUserCommandForm] = useState({ command: '', responseText: '' });
   const [serverCommandForm, setServerCommandForm] = useState({ command: '', responseText: '' });
+  const [uiPrefs, setUiPrefs] = useState<UiPrefs>(() => loadUiPrefs());
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
 
   const selectedServer = useMemo(
     () => servers.find((server) => server.id === selectedServerId) ?? null,
@@ -611,6 +643,34 @@ export function App() {
       setLibrarySort('manual');
     }
   }, [libraryScope, librarySort]);
+
+  useEffect(() => {
+    localStorage.setItem(UI_PREFS_KEY, JSON.stringify(uiPrefs));
+  }, [uiPrefs]);
+
+  useEffect(() => {
+    if (!accountMenuOpen) {
+      return;
+    }
+
+    const onPointerDown = (event: MouseEvent) => {
+      if (!accountMenuRef.current || accountMenuRef.current.contains(event.target as Node)) {
+        return;
+      }
+      setAccountMenuOpen(false);
+    };
+
+    window.addEventListener('mousedown', onPointerDown);
+    return () => window.removeEventListener('mousedown', onPointerDown);
+  }, [accountMenuOpen]);
+
+  useEffect(() => {
+    if (!user || uiPrefs.onboarded) {
+      return;
+    }
+    setCenterPane('account');
+    setAccountView('accessibility');
+  }, [user, uiPrefs.onboarded]);
 
   async function bootstrap(nextToken: string) {
     try {
@@ -1424,6 +1484,13 @@ export function App() {
     }
   }
 
+  function onOpenAccountView(view: 'profile' | 'settings' | 'accessibility') {
+    setAccountView(view);
+    setCenterPane('account');
+    setChannelSettingsOpen(false);
+    setAccountMenuOpen(false);
+  }
+
   if (!token || !user) {
     return (
       <main className="auth-shell">
@@ -1476,7 +1543,7 @@ export function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell size-${uiPrefs.textSize} contrast-${uiPrefs.contrast}`}>
       <aside className="sidebar rail">
         <div className="rail-brand" aria-label="Tincan">
           <img src="/tincan-logo.svg" alt="Tincan logo" />
@@ -1675,13 +1742,44 @@ export function App() {
             </button>
           </div>
           <div className="chat-header-actions top-right">
-            <div className="profile-chip">
-              <strong>{user.name}</strong>
-              <span>@{user.handle}</span>
+            <div className="account-menu" ref={accountMenuRef}>
+              <button
+                type="button"
+                className={`ghost account-menu-trigger${accountMenuOpen ? ' open' : ''}`}
+                onClick={() => setAccountMenuOpen((prev) => !prev)}
+                aria-expanded={accountMenuOpen}
+                aria-haspopup="menu"
+              >
+                <span className="profile-chip">
+                  <strong>{user.name}</strong>
+                  <span>@{user.handle}</span>
+                </span>
+                <span className="account-menu-caret">▾</span>
+              </button>
+              {accountMenuOpen ? (
+                <div className="account-dropdown" role="menu">
+                  <button type="button" className="ghost mini" onClick={() => onOpenAccountView('profile')}>
+                    Profile
+                  </button>
+                  <button type="button" className="ghost mini" onClick={() => onOpenAccountView('settings')}>
+                    Settings
+                  </button>
+                  <button type="button" className="ghost mini" onClick={() => onOpenAccountView('accessibility')}>
+                    Accessibility
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost mini"
+                    onClick={() => {
+                      setAccountMenuOpen(false);
+                      void logout();
+                    }}
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : null}
             </div>
-            <button className="ghost" onClick={() => void logout()}>
-              Logout
-            </button>
           </div>
         </header>
         {searchResults.length > 0 ? (
@@ -1698,7 +1796,19 @@ export function App() {
           </div>
         ) : null}
         <header className="chat-header">
-          <h2>{centerPane === 'library' ? 'Library' : selectedChannel ? `#${selectedChannel.name}` : 'Pick a channel'}</h2>
+          <h2>
+            {centerPane === 'library'
+              ? 'Library'
+              : centerPane === 'account'
+                ? accountView === 'profile'
+                  ? 'Profile'
+                  : accountView === 'settings'
+                    ? 'Settings'
+                    : 'Accessibility'
+                : selectedChannel
+                  ? `#${selectedChannel.name}`
+                  : 'Pick a channel'}
+          </h2>
           {centerPane === 'chat' ? (
             <div className="chat-channel-actions">
               <button
@@ -1870,7 +1980,7 @@ export function App() {
             </article>
           ))}
           </div>
-        ) : (
+        ) : centerPane === 'library' ? (
           <section className="library-workspace">
             <header>
               <h3>Library</h3>
@@ -2168,6 +2278,114 @@ export function App() {
                   </button>
                 </div>
               </div>
+            ) : null}
+          </section>
+        ) : (
+          <section className="account-workspace">
+            {accountView === 'profile' ? (
+              <article className="account-card">
+                <h3>Profile</h3>
+                <p className="panel-note">This identity appears across your private servers.</p>
+                <div className="account-grid">
+                  <label>
+                    Name
+                    <input value={user.name} readOnly />
+                  </label>
+                  <label>
+                    Handle
+                    <input value={`@${user.handle}`} readOnly />
+                  </label>
+                  <label>
+                    Email
+                    <input value={user.email} readOnly />
+                  </label>
+                </div>
+              </article>
+            ) : null}
+
+            {accountView === 'settings' ? (
+              <article className="account-card">
+                <h3>Workspace Settings</h3>
+                <p className="panel-note">Quick controls for how your workspace is currently displayed.</p>
+                <div className="account-grid">
+                  <label>
+                    Open center workspace
+                    <select
+                      value={centerPane === 'account' ? 'chat' : centerPane}
+                      onChange={(event) => setCenterPane(event.target.value as 'chat' | 'library')}
+                    >
+                      <option value="chat">Chat</option>
+                      <option value="library">Library</option>
+                    </select>
+                  </label>
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={showUnreadOnly}
+                      onChange={(event) => setShowUnreadOnly(event.target.checked)}
+                    />
+                    <span>Keep channels panel on unread-only mode</span>
+                  </label>
+                </div>
+              </article>
+            ) : null}
+
+            {accountView === 'accessibility' ? (
+              <article className="account-card">
+                <h3>Accessibility</h3>
+                <p className="panel-note">
+                  {uiPrefs.onboarded
+                    ? 'Adjust your text size and contrast at any time.'
+                    : 'Welcome. Choose text size and contrast for your workspace.'}
+                </p>
+                <div className="account-grid">
+                  <label>
+                    Text size
+                    <select
+                      value={uiPrefs.textSize}
+                      onChange={(event) =>
+                        setUiPrefs((prev) => ({
+                          ...prev,
+                          textSize: event.target.value as UiPrefs['textSize']
+                        }))
+                      }
+                    >
+                      <option value="compact">Compact</option>
+                      <option value="comfortable">Comfortable</option>
+                      <option value="large">Large</option>
+                    </select>
+                  </label>
+                  <label>
+                    Contrast mode
+                    <select
+                      value={uiPrefs.contrast}
+                      onChange={(event) =>
+                        setUiPrefs((prev) => ({
+                          ...prev,
+                          contrast: event.target.value as UiPrefs['contrast']
+                        }))
+                      }
+                    >
+                      <option value="default">Default</option>
+                      <option value="high">High contrast</option>
+                      <option value="soft">Soft contrast</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="metadata-actions">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setUiPrefs((prev) => ({
+                        ...prev,
+                        onboarded: true
+                      }))
+                    }
+                  >
+                    Save Accessibility Preferences
+                  </button>
+                </div>
+              </article>
             ) : null}
           </section>
         )}

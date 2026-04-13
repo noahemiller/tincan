@@ -29,6 +29,32 @@ body {
   min-height: 100vh;
 }
 
+.app-shell.size-compact {
+  font-size: 13px;
+}
+
+.app-shell.size-comfortable {
+  font-size: 14px;
+}
+
+.app-shell.size-large {
+  font-size: 16px;
+}
+
+.app-shell.contrast-high {
+  --text: #171533;
+  --text-muted: #322f66;
+  --border: rgba(23, 21, 51, 0.34);
+  --panel: rgba(255, 255, 255, 0.94);
+}
+
+.app-shell.contrast-soft {
+  --text: #38346a;
+  --text-muted: #6e69a8;
+  --border: rgba(119, 118, 188, 0.16);
+  --panel: rgba(255, 255, 255, 0.68);
+}
+
 .auth-shell,
 .app-shell {
   min-height: 100vh;
@@ -335,10 +361,7 @@ button.ghost {
 .profile-chip {
   display: grid;
   gap: 0.04rem;
-  padding: 0.2rem 0.45rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.78);
+  padding: 0;
   line-height: 1.15;
 }
 
@@ -349,6 +372,52 @@ button.ghost {
 .profile-chip span {
   font-size: 0.68rem;
   color: var(--text-muted);
+}
+
+.account-menu {
+  position: relative;
+}
+
+.account-menu-trigger {
+  min-width: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.42rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.account-menu-trigger .profile-chip {
+  text-align: left;
+}
+
+.account-menu-caret {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.account-menu-trigger.open {
+  border-color: var(--accent);
+}
+
+.account-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  min-width: 190px;
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 0.3rem;
+  display: grid;
+  gap: 0.24rem;
+  z-index: 20;
+}
+
+.account-dropdown button {
+  text-align: left;
+  width: 100%;
 }
 
 .icon-button {
@@ -747,6 +816,45 @@ button.ghost {
   overflow-y: auto;
 }
 
+.account-workspace {
+  padding: 0.65rem;
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+  overflow-y: auto;
+}
+
+.account-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.65rem;
+}
+
+.account-card h3 {
+  margin: 0 0 0.3rem;
+}
+
+.account-grid {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.account-grid label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text);
+}
+
 .library-workspace header h3 {
   margin: 0;
 }
@@ -1045,6 +1153,17 @@ button.ghost {
     grid-template-columns: 1fr;
   }
 
+  .account-menu-trigger {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .account-dropdown {
+    left: 0;
+    right: auto;
+    width: 100%;
+  }
+
   .channel-settings-panel {
     grid-template-columns: 1fr;
   }
@@ -1060,6 +1179,10 @@ button.ghost {
   }
 
   .library-list {
+    grid-template-columns: 1fr;
+  }
+
+  .account-grid {
     grid-template-columns: 1fr;
   }
 

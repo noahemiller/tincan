@@ -117,3 +117,6 @@
 - Decoded OGP HTML entities inside librarian metadata editor drafts for readable editing
 - Added targeted library metadata save error messaging for missing API routes (version mismatch/restart hint)
 - Fixed Fastify handler typing for library metadata alias routes to restore API build/start in Docker
+- Converted top-right user chip into a full account menu button with dropdown actions routed into center workspace
+- Added account workspace pages for profile, settings, and accessibility controls
+- Added persisted UI preferences (`tincan_ui_prefs_v1`) plus first-login accessibility onboarding flow
