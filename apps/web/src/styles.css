@@ -741,7 +741,7 @@ button.ghost {
 
 .library-toolbar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.45rem;
   align-items: center;
 }
@@ -852,6 +852,51 @@ button.ghost {
 
 .library-copy a:hover {
   text-decoration: underline;
+}
+
+.library-meta {
+  color: var(--text-muted);
+  font-size: 0.66rem;
+}
+
+.library-tags {
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  font-style: italic;
+}
+
+.metadata-editor {
+  margin-top: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.74);
+  padding: 0.45rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.metadata-editor h4 {
+  margin: 0;
+}
+
+.metadata-editor textarea {
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 0.52rem 0.65rem;
+  background: rgba(255, 255, 255, 0.85);
+  resize: vertical;
+}
+
+.metadata-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.metadata-actions {
+  display: flex;
+  gap: 0.3rem;
 }
 
 .error {

@@ -76,5 +76,10 @@ All notable changes to this project are tracked here.
 - Made library actions mode-specific to reduce ambiguity (`Add Selected To Collection` only in browse mode, remove in collection mode)
 - Switched library cards to a compact 3-column grid layout on desktop with smaller thumbnails
 - Added drag-and-drop robustness updates (explicit drag payload and graceful fallback when reorder endpoint is unavailable)
+- Expanded library metadata model in API/UI: poster, original post id, post time, title, description, taxonomy terms
+- Added library facet filters: poster, taxonomy term, date range, and full text match across title/description
+- Added server-wide library loading (no longer constrained by currently selected channel)
+- Added first-pass “Librarian Metadata” editor (title/description/taxonomy edits + suggestion chips)
+- Added “Add Filtered To Collection” action to save current filtered library view into a collection
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation

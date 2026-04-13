@@ -98,6 +98,12 @@ const reorderCollectionItemsSchema = z.object({
   libraryItemIds: z.array(z.string().uuid()).min(1).max(500)
 });
 
+const updateLibraryItemMetadataSchema = z.object({
+  title: z.string().max(300).optional().nullable(),
+  description: z.string().max(2000).optional().nullable(),
+  taxonomyTerms: z.array(z.string().min(1).max(60)).max(40).optional()
+});
+
 const createInviteSchema = z.object({
   roleToGrant: z.enum(['admin', 'member']).default('member'),
   maxUses: z.number().int().positive().max(10000).optional(),
@@ -885,7 +891,7 @@ export async function registerAppRoutes(app: FastifyInstance) {
   app.get('/api/library/items', { preHandler: authGuard }, async (request, reply) => {
     const userId = request.authUser!.userId;
     const query = request.query as { serverId?: string; channelId?: string; limit?: string };
-    const limit = Math.min(Number(query.limit ?? 50), 100);
+    const limit = Math.min(Number(query.limit ?? 200), 500);
 
     if (!query.serverId) {
       return reply.code(400).send({ error: 'serverId is required' });
@@ -901,12 +907,15 @@ export async function registerAppRoutes(app: FastifyInstance) {
       `
       SELECT li.id, li.item_type, li.url, li.title, li.description, li.taxonomy_terms, li.created_at,
              li.channel_id, c.name AS channel_name,
-             li.posted_by_user_id, u.handle AS posted_by_handle,
+             li.source_message_id,
+             COALESCE(m.created_at, li.created_at) AS post_time,
+             li.posted_by_user_id, u.handle AS posted_by_handle, u.name AS posted_by_name,
              mi.public_url AS media_url,
              lp.title AS preview_title, lp.description AS preview_description, lp.image_url AS preview_image_url
       FROM library_items li
       JOIN channels c ON c.id = li.channel_id
       JOIN users u ON u.id = li.posted_by_user_id
+      LEFT JOIN messages m ON m.id = li.source_message_id
       LEFT JOIN media_items mi ON mi.id = li.media_item_id
       LEFT JOIN link_previews lp ON lp.url = li.url
       WHERE li.server_id = $1
@@ -918,6 +927,55 @@ export async function registerAppRoutes(app: FastifyInstance) {
     );
 
     return { items: result.rows };
+  });
+
+  app.patch('/api/library/items/:itemId', { preHandler: authGuard }, async (request, reply) => {
+    const params = request.params as { itemId: string };
+    const parsed = updateLibraryItemMetadataSchema.safeParse(request.body);
+    const userId = request.authUser!.userId;
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const itemResult = await pool.query(
+      `
+      SELECT id, server_id
+      FROM library_items
+      WHERE id = $1
+      `,
+      [params.itemId]
+    );
+
+    if (itemResult.rowCount === 0) {
+      return reply.code(404).send({ error: 'Library item not found' });
+    }
+
+    const item = itemResult.rows[0];
+    const isMember = await requireServerMembership(userId, item.server_id);
+
+    if (!isMember) {
+      return reply.code(403).send({ error: 'Not a server member' });
+    }
+
+    const normalizedTerms =
+      parsed.data.taxonomyTerms?.map((term) => term.trim().toLowerCase()).filter((term) => term.length > 0) ?? undefined;
+
+    const dedupedTerms = normalizedTerms ? [...new Set(normalizedTerms)] : undefined;
+
+    const result = await pool.query(
+      `
+      UPDATE library_items
+      SET title = COALESCE($2, title),
+          description = COALESCE($3, description),
+          taxonomy_terms = COALESCE($4, taxonomy_terms)
+      WHERE id = $1
+      RETURNING id, title, description, taxonomy_terms
+      `,
+      [params.itemId, parsed.data.title ?? null, parsed.data.description ?? null, dedupedTerms ?? null]
+    );
+
+    return { item: result.rows[0] };
   });
 
   app.get('/api/library/collections', { preHandler: authGuard }, async (request, reply) => {
@@ -1014,6 +1072,9 @@ export async function registerAppRoutes(app: FastifyInstance) {
       `
       SELECT li.id, li.item_type, li.url, li.title, li.description, li.taxonomy_terms, li.created_at,
              c.name AS channel_name,
+             li.source_message_id,
+             COALESCE(m.created_at, li.created_at) AS post_time,
+             li.posted_by_user_id, u.handle AS posted_by_handle, u.name AS posted_by_name,
              mi.public_url AS media_url,
              lp.title AS preview_title,
              lp.description AS preview_description,
@@ -1021,6 +1082,8 @@ export async function registerAppRoutes(app: FastifyInstance) {
       FROM collection_items ci
       JOIN library_items li ON li.id = ci.library_item_id
       JOIN channels c ON c.id = li.channel_id
+      JOIN users u ON u.id = li.posted_by_user_id
+      LEFT JOIN messages m ON m.id = li.source_message_id
       LEFT JOIN media_items mi ON mi.id = li.media_item_id
       LEFT JOIN link_previews lp ON lp.url = li.url
       WHERE ci.collection_id = $1

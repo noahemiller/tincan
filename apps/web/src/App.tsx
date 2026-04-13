@@ -62,9 +62,15 @@ type Command = {
 type LibraryItem = {
   id: string;
   item_type: 'url' | 'media';
+  source_message_id?: string | null;
+  post_time?: string;
+  posted_by_user_id?: string;
+  posted_by_handle?: string;
+  posted_by_name?: string;
   url?: string | null;
   title?: string | null;
   description?: string | null;
+  taxonomy_terms?: string[];
   media_url?: string | null;
   preview_image_url?: string | null;
   preview_title?: string | null;
@@ -122,6 +128,44 @@ function getYouTubeEmbedUrl(rawUrl: string) {
   }
 
   return null;
+}
+
+function guessTaxonomySuggestions(item: LibraryItem) {
+  const suggestions = new Set<string>();
+  if (item.item_type === 'media') {
+    suggestions.add('media');
+    const url = item.media_url || '';
+    if (/\.(png|jpg|jpeg|gif|webp|avif)$/i.test(url)) suggestions.add('image');
+    if (/\.(mp4|mov|m4v|webm)$/i.test(url)) suggestions.add('video');
+    if (/\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(url)) suggestions.add('audio');
+  } else {
+    suggestions.add('link');
+    if (item.url) {
+      try {
+        const host = new URL(item.url).hostname.replace(/^www\./, '');
+        const root = host.split('.')[0];
+        if (root) suggestions.add(root.toLowerCase());
+      } catch {
+        // ignore invalid urls
+      }
+    }
+  }
+
+  const sourceText = `${item.preview_title || ''} ${item.preview_description || ''} ${item.title || ''} ${item.description || ''}`.toLowerCase();
+  const keywordToTerm: [RegExp, string][] = [
+    [/\bmusic|song|album|track|spotify|apple music|tidal\b/, 'music'],
+    [/\bvideo|youtube|clip\b/, 'video'],
+    [/\bnews|article|blog\b/, 'article'],
+    [/\bcode|github|programming|dev\b/, 'tech'],
+    [/\bgame|gaming\b/, 'gaming']
+  ];
+  for (const [pattern, term] of keywordToTerm) {
+    if (pattern.test(sourceText)) {
+      suggestions.add(term);
+    }
+  }
+
+  return [...suggestions].slice(0, 8);
 }
 
 type MusicPreview = {
@@ -250,6 +294,14 @@ export function App() {
   const [libraryQuery, setLibraryQuery] = useState('');
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<'all' | 'url' | 'media'>('all');
   const [librarySort, setLibrarySort] = useState<'newest' | 'oldest' | 'title' | 'manual'>('newest');
+  const [libraryPosterFilter, setLibraryPosterFilter] = useState<string>('all');
+  const [libraryTaxonomyFilter, setLibraryTaxonomyFilter] = useState<string>('all');
+  const [libraryDateFrom, setLibraryDateFrom] = useState('');
+  const [libraryDateTo, setLibraryDateTo] = useState('');
+  const [editingLibraryItem, setEditingLibraryItem] = useState<LibraryItem | null>(null);
+  const [metadataTitleDraft, setMetadataTitleDraft] = useState('');
+  const [metadataDescriptionDraft, setMetadataDescriptionDraft] = useState('');
+  const [metadataTermsDraft, setMetadataTermsDraft] = useState('');
   const [draggingLibraryItemId, setDraggingLibraryItemId] = useState<string | null>(null);
   const [dragOverLibraryItemId, setDragOverLibraryItemId] = useState<string | null>(null);
   const [inviteRoleToGrant, setInviteRoleToGrant] = useState<'admin' | 'member'>('member');
@@ -333,12 +385,47 @@ export function App() {
   );
   const canReorderCollection = libraryScope === 'collection' && !!selectedCollectionId && librarySort === 'manual';
 
+  const availablePosterFacets = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of activeLibraryItems) {
+      if (item.posted_by_user_id) {
+        map.set(item.posted_by_user_id, item.posted_by_handle || item.posted_by_name || item.posted_by_user_id);
+      }
+    }
+    return [...map.entries()].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [activeLibraryItems]);
+
+  const availableTaxonomyFacets = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of activeLibraryItems) {
+      for (const term of item.taxonomy_terms ?? []) {
+        if (term.trim()) set.add(term.trim().toLowerCase());
+      }
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [activeLibraryItems]);
+
   const filteredLibraryItems = useMemo(() => {
     const query = libraryQuery.trim().toLowerCase();
 
     const filtered = activeLibraryItems.filter((item) => {
       if (libraryTypeFilter !== 'all' && item.item_type !== libraryTypeFilter) {
         return false;
+      }
+      if (libraryPosterFilter !== 'all' && item.posted_by_user_id !== libraryPosterFilter) {
+        return false;
+      }
+      if (libraryTaxonomyFilter !== 'all' && !(item.taxonomy_terms ?? []).map((term) => term.toLowerCase()).includes(libraryTaxonomyFilter)) {
+        return false;
+      }
+      const postTimeValue = new Date(item.post_time || item.created_at || 0).getTime();
+      if (libraryDateFrom) {
+        const from = new Date(`${libraryDateFrom}T00:00:00`).getTime();
+        if (postTimeValue < from) return false;
+      }
+      if (libraryDateTo) {
+        const to = new Date(`${libraryDateTo}T23:59:59`).getTime();
+        if (postTimeValue > to) return false;
       }
       if (!query) {
         return true;
@@ -371,7 +458,17 @@ export function App() {
     }
 
     return sorted;
-  }, [activeLibraryItems, libraryQuery, libraryTypeFilter, librarySort, libraryScope]);
+  }, [
+    activeLibraryItems,
+    libraryQuery,
+    libraryTypeFilter,
+    libraryPosterFilter,
+    libraryTaxonomyFilter,
+    libraryDateFrom,
+    libraryDateTo,
+    librarySort,
+    libraryScope
+  ]);
 
   const galleryImages = useMemo(
     () =>
@@ -546,7 +643,7 @@ export function App() {
       setSelectedChannelId(firstChannel.id);
       setSelectedThreadRootId('');
       setThreadMessages([]);
-      await loadLibraryAndCollections(nextToken, serverId, firstChannel.id);
+      await loadLibraryAndCollections(nextToken, serverId);
       await loadMessages(nextToken, firstChannel.id);
     } else {
       setSelectedChannelId('');
@@ -564,9 +661,9 @@ export function App() {
     setChannelMode(preferenceResult.preference.mode);
   }
 
-  async function loadLibraryAndCollections(nextToken: string, serverId: string, channelId?: string) {
+  async function loadLibraryAndCollections(nextToken: string, serverId: string) {
     const [libraryResult, collectionResult] = await Promise.all([
-      api.libraryItems(nextToken, serverId, channelId),
+      api.libraryItems(nextToken, serverId),
       api.collections(nextToken, serverId)
     ]);
 
@@ -919,6 +1016,82 @@ export function App() {
     setSelectedLibraryItemIds((prev) => [...new Set([...prev, ...ids])]);
   }
 
+  function onSetMetadataDraft(item: LibraryItem) {
+    setEditingLibraryItem(item);
+    setMetadataTitleDraft(item.title || item.preview_title || '');
+    setMetadataDescriptionDraft(item.description || item.preview_description || '');
+    setMetadataTermsDraft((item.taxonomy_terms ?? []).join(', '));
+  }
+
+  function onApplySuggestedTerm(term: string) {
+    const currentTerms = metadataTermsDraft
+      .split(',')
+      .map((part) => part.trim().toLowerCase())
+      .filter(Boolean);
+    if (currentTerms.includes(term.toLowerCase())) {
+      return;
+    }
+    const next = [...currentTerms, term.toLowerCase()];
+    setMetadataTermsDraft(next.join(', '));
+  }
+
+  async function onSaveLibraryMetadata() {
+    if (!token || !editingLibraryItem) {
+      return;
+    }
+
+    const taxonomyTerms = metadataTermsDraft
+      .split(',')
+      .map((part) => part.trim().toLowerCase())
+      .filter(Boolean);
+
+    try {
+      setBusy(true);
+      const result = await api.updateLibraryItem(token, editingLibraryItem.id, {
+        title: metadataTitleDraft.trim() || null,
+        description: metadataDescriptionDraft.trim() || null,
+        taxonomyTerms
+      });
+      const patch = result.item;
+      setLibraryItems((prev) =>
+        prev.map((item) =>
+          item.id === editingLibraryItem.id
+            ? { ...item, title: patch.title ?? null, description: patch.description ?? null, taxonomy_terms: patch.taxonomy_terms ?? [] }
+            : item
+        )
+      );
+      setCollectionItems((prev) =>
+        prev.map((item) =>
+          item.id === editingLibraryItem.id
+            ? { ...item, title: patch.title ?? null, description: patch.description ?? null, taxonomy_terms: patch.taxonomy_terms ?? [] }
+            : item
+        )
+      );
+      setEditingLibraryItem(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Failed to save metadata');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onAddFilteredToCollection() {
+    if (!token || !selectedCollectionId || filteredLibraryItems.length === 0) {
+      return;
+    }
+    const ids = filteredLibraryItems.map((item) => item.id).slice(0, 100);
+    try {
+      setBusy(true);
+      await api.addCollectionItems(token, selectedCollectionId, ids);
+      const result = await api.collectionItems(token, selectedCollectionId);
+      setCollectionItems(result.items);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Failed to add filtered items');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function onClearLibrarySelection() {
     setSelectedLibraryItemIds([]);
   }
@@ -972,7 +1145,7 @@ export function App() {
         visibility: collectionVisibility
       });
       setCollectionName('');
-      await loadLibraryAndCollections(token, selectedServerId, selectedChannelId || undefined);
+      await loadLibraryAndCollections(token, selectedServerId);
       setSelectedCollectionId(result.collection.id);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Failed to create collection');
@@ -1038,7 +1211,7 @@ export function App() {
     setSelectedThreadRootId('');
     setThreadMessages([]);
     if (selectedServerId) {
-      await loadLibraryAndCollections(token, selectedServerId, channelId);
+      await loadLibraryAndCollections(token, selectedServerId);
     }
     await loadMessages(token, channelId);
     const unreadResult = await api.unread(token);
@@ -1078,7 +1251,15 @@ export function App() {
     setLibraryScope('all');
     setLibraryQuery('');
     setLibraryTypeFilter('all');
+    setLibraryPosterFilter('all');
+    setLibraryTaxonomyFilter('all');
+    setLibraryDateFrom('');
+    setLibraryDateTo('');
     setLibrarySort('newest');
+    setEditingLibraryItem(null);
+    setMetadataTitleDraft('');
+    setMetadataDescriptionDraft('');
+    setMetadataTermsDraft('');
     setDraggingLibraryItemId(null);
     setDragOverLibraryItemId(null);
     setInvites([]);
@@ -1644,11 +1825,29 @@ export function App() {
                 value={libraryQuery}
                 onChange={(event) => setLibraryQuery(event.target.value)}
               />
+              <select value={libraryPosterFilter} onChange={(event) => setLibraryPosterFilter(event.target.value)}>
+                <option value="all">All posters</option>
+                {availablePosterFacets.map((poster) => (
+                  <option key={poster.id} value={poster.id}>
+                    @{poster.label}
+                  </option>
+                ))}
+              </select>
               <select value={libraryTypeFilter} onChange={(event) => setLibraryTypeFilter(event.target.value as 'all' | 'url' | 'media')}>
                 <option value="all">All types</option>
                 <option value="url">Links</option>
                 <option value="media">Media</option>
               </select>
+              <select value={libraryTaxonomyFilter} onChange={(event) => setLibraryTaxonomyFilter(event.target.value)}>
+                <option value="all">All taxonomy</option>
+                {availableTaxonomyFacets.map((term) => (
+                  <option key={term} value={term}>
+                    {term}
+                  </option>
+                ))}
+              </select>
+              <input type="date" value={libraryDateFrom} onChange={(event) => setLibraryDateFrom(event.target.value)} />
+              <input type="date" value={libraryDateTo} onChange={(event) => setLibraryDateTo(event.target.value)} />
               <select
                 value={librarySort}
                 onChange={(event) => setLibrarySort(event.target.value as 'newest' | 'oldest' | 'title' | 'manual')}
@@ -1665,13 +1864,23 @@ export function App() {
                 </option>
               </select>
               {libraryScope === 'all' ? (
-                <button
-                  type="button"
-                  onClick={() => void onAddSelectedToCollection()}
-                  disabled={!selectedCollectionId || selectedLibraryItemIds.length === 0}
-                >
-                  Add Selected To Collection
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void onAddSelectedToCollection()}
+                    disabled={!selectedCollectionId || selectedLibraryItemIds.length === 0}
+                  >
+                    Add Selected To Collection
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => void onAddFilteredToCollection()}
+                    disabled={!selectedCollectionId || filteredLibraryItems.length === 0}
+                  >
+                    Add Filtered To Collection
+                  </button>
+                </>
               ) : (
                 <button
                   className="ghost"
@@ -1735,11 +1944,22 @@ export function App() {
                       <div className="library-copy">
                         <strong>{title}</strong>
                         {description ? <p>{description}</p> : null}
+                        <span className="library-meta">
+                          {item.posted_by_handle ? `@${item.posted_by_handle}` : 'unknown poster'}{' '}
+                          {item.post_time ? `• ${new Date(item.post_time).toLocaleDateString()}` : ''}
+                          {item.source_message_id ? ` • post ${item.source_message_id.slice(0, 8)}` : ''}
+                        </span>
+                        {(item.taxonomy_terms ?? []).length > 0 ? (
+                          <span className="library-tags">{(item.taxonomy_terms ?? []).slice(0, 4).join(' · ')}</span>
+                        ) : null}
                         {item.url ? (
                           <a href={item.url} rel="noreferrer" target="_blank">
                             {item.url}
                           </a>
                         ) : null}
+                        <button className="ghost mini" type="button" onClick={() => onSetMetadataDraft(item)}>
+                          Edit Metadata
+                        </button>
                       </div>
                     </div>
                   </article>
@@ -1753,6 +1973,39 @@ export function App() {
                 <p className="panel-note">Pick a collection to curate items.</p>
               ) : null}
             </div>
+            {editingLibraryItem ? (
+              <div className="metadata-editor">
+                <h4>Librarian Metadata</h4>
+                <p className="panel-note">Suggestions are gray until you save edits.</p>
+                <input value={metadataTitleDraft} onChange={(event) => setMetadataTitleDraft(event.target.value)} placeholder="Title" />
+                <textarea
+                  value={metadataDescriptionDraft}
+                  onChange={(event) => setMetadataDescriptionDraft(event.target.value)}
+                  placeholder="Description"
+                  rows={4}
+                />
+                <input
+                  value={metadataTermsDraft}
+                  onChange={(event) => setMetadataTermsDraft(event.target.value)}
+                  placeholder="taxonomy terms (comma-separated)"
+                />
+                <div className="metadata-suggestions">
+                  {guessTaxonomySuggestions(editingLibraryItem).map((term) => (
+                    <button className="ghost mini" key={term} type="button" onClick={() => onApplySuggestedTerm(term)}>
+                      + {term}
+                    </button>
+                  ))}
+                </div>
+                <div className="metadata-actions">
+                  <button type="button" onClick={() => void onSaveLibraryMetadata()} disabled={busy}>
+                    Save Metadata
+                  </button>
+                  <button className="ghost" type="button" onClick={() => setEditingLibraryItem(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </section>
         )}
 

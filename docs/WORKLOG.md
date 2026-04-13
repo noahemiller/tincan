@@ -37,6 +37,12 @@
 - Updated library item grid to 3 columns on desktop and single column on narrow screens
 - Reduced library thumbnail height and clamped title/description lines for denser cards
 - Added drag payload data + fallback handling when `PATCH /items/order` is not available (local reorder still applies)
+- Added library item metadata update API (`PATCH /api/library/items/:itemId`) for title/description/taxonomy edits
+- Extended library item payloads to include `source_message_id`, `post_time`, poster identity fields, and taxonomy terms
+- Updated library filters with poster facet, taxonomy facet, and date range (`from` / `to`)
+- Added librarian metadata editor UI with suggested taxonomy chips and save/cancel workflow
+- Added “Add Filtered To Collection” action to persist current filtered results to selected collection
+- Corrected library loading scope to server-wide data instead of selected-channel-only data
 
 ## 2026-04-12
 

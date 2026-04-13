@@ -218,9 +218,15 @@ export const api = {
       items: {
         id: string;
         item_type: 'url' | 'media';
+        source_message_id?: string | null;
+        post_time: string;
+        posted_by_user_id: string;
+        posted_by_handle: string;
+        posted_by_name: string;
         url?: string | null;
         title?: string | null;
         description?: string | null;
+        taxonomy_terms: string[];
         media_url?: string | null;
         preview_image_url?: string | null;
         preview_title?: string | null;
@@ -230,6 +236,16 @@ export const api = {
       }[];
     }>(`/api/library/items?${params.toString()}`, {}, token);
   },
+  updateLibraryItem: (
+    token: string,
+    itemId: string,
+    payload: { title?: string | null; description?: string | null; taxonomyTerms?: string[] }
+  ) =>
+    request<{ item: { id: string; title?: string | null; description?: string | null; taxonomy_terms: string[] } }>(
+      `/api/library/items/${itemId}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+      token
+    ),
   collections: (token: string, serverId: string) =>
     request<{
       collections: { id: string; name: string; visibility: 'private' | 'public'; created_at: string }[];
@@ -257,9 +273,15 @@ export const api = {
       items: {
         id: string;
         item_type: 'url' | 'media';
+        source_message_id?: string | null;
+        post_time: string;
+        posted_by_user_id: string;
+        posted_by_handle: string;
+        posted_by_name: string;
         url?: string | null;
         title?: string | null;
         description?: string | null;
+        taxonomy_terms: string[];
         media_url?: string | null;
         preview_image_url?: string | null;
         preview_title?: string | null;
