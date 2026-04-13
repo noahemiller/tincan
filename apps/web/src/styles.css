@@ -257,7 +257,7 @@ button.ghost {
   aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
-  padding: 0;
+  padding: 0.14rem;
   overflow: hidden;
 }
 
@@ -266,9 +266,9 @@ button.ghost {
 }
 
 .rail-icon {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: 86%;
+  height: 86%;
+  object-fit: contain;
   display: block;
 }
 
