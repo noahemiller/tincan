@@ -136,3 +136,4 @@
 - Added authenticated profile photo GET/POST endpoints and upload handling to local uploads storage
 - Added profile photo chooser in account profile: uploaded + library images can populate avatar fields with one click
 - Copied user-provided SVG nav icons into web public assets and switched rail icon references from PNG to SVG
+- Added channel facet generation and filter state in library view so items can be narrowed by original posting channel

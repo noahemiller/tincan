@@ -110,3 +110,4 @@ All notable changes to this project are tracked here.
 - Expanded profile UI to upload photos and apply any listed photo as avatar (full + thumb)
 - Hardened avatar rendering with SQL empty-string guard and image-load fallback to initials
 - Replaced rail navigation PNG icons with SVG assets (`icon-channels.svg`, `icon-dms.svg`, `icon-servers.svg`)
+- Added library facet filter by original source channel (`All channels` / specific `#channel`) in toolbar

@@ -370,6 +370,7 @@ export function App() {
   const [libraryTypeFilter, setLibraryTypeFilter] = useState<'all' | 'url' | 'media'>('all');
   const [librarySort, setLibrarySort] = useState<'newest' | 'oldest' | 'title' | 'manual'>('newest');
   const [libraryPosterFilter, setLibraryPosterFilter] = useState<string>('all');
+  const [libraryChannelFilter, setLibraryChannelFilter] = useState<string>('all');
   const [libraryTaxonomyFilter, setLibraryTaxonomyFilter] = useState<string>('all');
   const [libraryDateFrom, setLibraryDateFrom] = useState('');
   const [libraryDateTo, setLibraryDateTo] = useState('');
@@ -532,6 +533,16 @@ export function App() {
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [activeLibraryItems]);
 
+  const availableChannelFacets = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of activeLibraryItems) {
+      if (item.channel_name?.trim()) {
+        set.add(item.channel_name.trim());
+      }
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [activeLibraryItems]);
+
   const filteredLibraryItems = useMemo(() => {
     const query = libraryQuery.trim().toLowerCase();
 
@@ -540,6 +551,9 @@ export function App() {
         return false;
       }
       if (libraryPosterFilter !== 'all' && item.posted_by_user_id !== libraryPosterFilter) {
+        return false;
+      }
+      if (libraryChannelFilter !== 'all' && item.channel_name !== libraryChannelFilter) {
         return false;
       }
       if (libraryTaxonomyFilter !== 'all' && !(item.taxonomy_terms ?? []).map((term) => term.toLowerCase()).includes(libraryTaxonomyFilter)) {
@@ -590,6 +604,7 @@ export function App() {
     libraryQuery,
     libraryTypeFilter,
     libraryPosterFilter,
+    libraryChannelFilter,
     libraryTaxonomyFilter,
     libraryDateFrom,
     libraryDateTo,
@@ -1566,6 +1581,7 @@ export function App() {
     setLibraryQuery('');
     setLibraryTypeFilter('all');
     setLibraryPosterFilter('all');
+    setLibraryChannelFilter('all');
     setLibraryTaxonomyFilter('all');
     setLibraryDateFrom('');
     setLibraryDateTo('');
@@ -2348,6 +2364,14 @@ export function App() {
                 {availablePosterFacets.map((poster) => (
                   <option key={poster.id} value={poster.id}>
                     @{poster.label}
+                  </option>
+                ))}
+              </select>
+              <select value={libraryChannelFilter} onChange={(event) => setLibraryChannelFilter(event.target.value)}>
+                <option value="all">All channels</option>
+                {availableChannelFacets.map((channelName) => (
+                  <option key={channelName} value={channelName}>
+                    #{channelName}
                   </option>
                 ))}
               </select>
