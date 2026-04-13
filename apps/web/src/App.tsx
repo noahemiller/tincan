@@ -1651,7 +1651,15 @@ export function App() {
             </form>
             <button
               className={centerPane === 'library' ? '' : 'ghost'}
-              onClick={() => setCenterPane(centerPane === 'chat' ? 'library' : 'chat')}
+              onClick={() =>
+                setCenterPane((prev) => {
+                  const next = prev === 'chat' ? 'library' : 'chat';
+                  if (next === 'library') {
+                    setChannelSettingsOpen(false);
+                  }
+                  return next;
+                })
+              }
               type="button"
             >
               {centerPane === 'chat' ? 'Library' : 'Chat'}
@@ -1681,49 +1689,53 @@ export function App() {
           </div>
         ) : null}
         <header className="chat-header">
-          <h2>{selectedChannel ? `#${selectedChannel.name}` : 'Pick a channel'}</h2>
-          <div className="chat-channel-actions">
-            <button
-              aria-label="Open channel settings"
-              className="ghost mini icon-button"
-              disabled={!selectedChannelId}
-              onClick={() => setChannelSettingsOpen((prev) => !prev)}
-              type="button"
-            >
-              ⚙
-            </button>
-          </div>
-        </header>
-        <div
-          className={`channel-settings-accordion${channelSettingsOpen ? ' open' : ''}`}
-          aria-hidden={!channelSettingsOpen}
-        >
-          <form autoComplete="off" className="channel-settings-panel" onSubmit={onSaveChannelPreference}>
-            <label>
-              Mode
-              <select
-                value={channelMode}
-                onChange={(event) => setChannelMode(event.target.value as 'hidden' | 'passive' | 'active')}
+          <h2>{centerPane === 'library' ? 'Library' : selectedChannel ? `#${selectedChannel.name}` : 'Pick a channel'}</h2>
+          {centerPane === 'chat' ? (
+            <div className="chat-channel-actions">
+              <button
+                aria-label="Open channel settings"
+                className="ghost mini icon-button"
+                disabled={!selectedChannelId}
+                onClick={() => setChannelSettingsOpen((prev) => !prev)}
+                type="button"
               >
-                <option value="passive">Passive</option>
-                <option value="active">Active</option>
-                <option value="hidden">Hidden</option>
-              </select>
-            </label>
-            <label>
-              Snooze (hours)
-              <input
-                type="number"
-                min="0"
-                value={channelSnoozeHours}
-                onChange={(event) => setChannelSnoozeHours(event.target.value)}
-              />
-            </label>
-            <button type="submit" disabled={!selectedChannelId}>
-              Save
-            </button>
-          </form>
-        </div>
+                ⚙
+              </button>
+            </div>
+          ) : null}
+        </header>
+        {centerPane === 'chat' ? (
+          <div
+            className={`channel-settings-accordion${channelSettingsOpen ? ' open' : ''}`}
+            aria-hidden={!channelSettingsOpen}
+          >
+            <form autoComplete="off" className="channel-settings-panel" onSubmit={onSaveChannelPreference}>
+              <label>
+                Mode
+                <select
+                  value={channelMode}
+                  onChange={(event) => setChannelMode(event.target.value as 'hidden' | 'passive' | 'active')}
+                >
+                  <option value="passive">Passive</option>
+                  <option value="active">Active</option>
+                  <option value="hidden">Hidden</option>
+                </select>
+              </label>
+              <label>
+                Snooze (hours)
+                <input
+                  type="number"
+                  min="0"
+                  value={channelSnoozeHours}
+                  onChange={(event) => setChannelSnoozeHours(event.target.value)}
+                />
+              </label>
+              <button type="submit" disabled={!selectedChannelId}>
+                Save
+              </button>
+            </form>
+          </div>
+        ) : null}
 
         {centerPane === 'chat' ? (
           <div className="messages">
