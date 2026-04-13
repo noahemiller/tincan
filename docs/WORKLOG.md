@@ -25,6 +25,8 @@
 - Converted rail buttons to square tiles and cropped icon rendering to square fill (`object-fit: cover`)
 - Disabled hover translate on rail buttons to avoid icon overflow beyond the rail bounds
 - Adjusted rail icon fit to `contain` at 86% with button inset padding to eliminate clipping
+- Added `apps/web/public/tincan-logo.svg` and switched auth/rail logo image sources from PNG to SVG
+- Updated `index.html` favicon declaration to prefer SVG icon with existing `.ico` fallback
 
 ## 2026-04-12
 
