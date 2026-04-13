@@ -103,7 +103,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         `
         INSERT INTO users (email, handle, name, password_hash)
         VALUES ($1, $2, $3, $4)
-        RETURNING id, email, handle, name, avatar_url, bio
+        RETURNING id, email, handle, name, avatar_url, avatar_thumb_url, bio, home_server_id
         `,
         [data.email.toLowerCase(), normalizedHandle, data.name, passwordHash]
       );
@@ -147,7 +147,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     const result = await pool.query(
       `
-      SELECT id, email, handle, name, avatar_url, bio, password_hash
+      SELECT id, email, handle, name, avatar_url, avatar_thumb_url, bio, home_server_id, password_hash
       FROM users
       WHERE email = $1
       `,
@@ -187,6 +187,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         handle: user.handle,
         name: user.name,
         avatar_url: user.avatar_url,
+        avatar_thumb_url: user.avatar_thumb_url,
+        home_server_id: user.home_server_id,
         bio: user.bio
       }
     });
@@ -203,7 +205,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     const sessionResult = await pool.query(
       `
-      SELECT s.id, s.user_id, u.email, u.handle, u.name, u.avatar_url, u.bio
+      SELECT s.id, s.user_id, u.email, u.handle, u.name, u.avatar_url, u.avatar_thumb_url, u.home_server_id, u.bio
       FROM auth_sessions s
       JOIN users u ON u.id = s.user_id
       WHERE s.refresh_token_hash = $1
@@ -244,6 +246,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         handle: session.handle,
         name: session.name,
         avatar_url: session.avatar_url,
+        avatar_thumb_url: session.avatar_thumb_url,
+        home_server_id: session.home_server_id,
         bio: session.bio
       }
     });

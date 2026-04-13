@@ -114,6 +114,22 @@ const updateMemberRoleSchema = z.object({
   role: z.enum(['admin', 'member'])
 });
 
+const updateProfileSchema = z.object({
+  name: z.string().min(1).max(80).optional(),
+  handle: z
+    .string()
+    .min(2)
+    .max(32)
+    .transform((value) => slugify(value).replace(/-/g, '_'))
+    .refine((value) => value.length >= 2, 'Handle must include at least 2 letters or numbers')
+    .optional(),
+  email: z.string().email().optional(),
+  bio: z.string().max(1000).nullable().optional(),
+  avatarUrl: z.string().url().nullable().optional(),
+  avatarThumbUrl: z.string().url().nullable().optional(),
+  homeServerId: z.string().uuid().nullable().optional()
+});
+
 type ServerRole = 'owner' | 'admin' | 'member';
 
 async function requireServerMembership(userId: string, serverId: string) {
@@ -210,11 +226,85 @@ export async function registerAppRoutes(app: FastifyInstance) {
   app.get('/api/me', { preHandler: authGuard }, async (request) => {
     const userId = request.authUser!.userId;
     const result = await pool.query(
-      'SELECT id, email, handle, name, avatar_url, bio, created_at FROM users WHERE id = $1',
+      'SELECT id, email, handle, name, avatar_url, avatar_thumb_url, bio, home_server_id, created_at FROM users WHERE id = $1',
       [userId]
     );
 
     return { user: result.rows[0] ?? null };
+  });
+
+  app.patch('/api/me', { preHandler: authGuard }, async (request, reply) => {
+    const userId = request.authUser!.userId;
+    const parsed = updateProfileSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const next = parsed.data;
+    const hasFields = Object.keys(next).length > 0;
+    if (!hasFields) {
+      return reply.code(400).send({ error: 'No profile fields provided' });
+    }
+
+    if (next.homeServerId) {
+      const membership = await pool.query(
+        'SELECT 1 FROM memberships WHERE user_id = $1 AND server_id = $2',
+        [userId, next.homeServerId]
+      );
+      if (membership.rowCount === 0) {
+        return reply.code(403).send({ error: 'Home server must be one of your servers' });
+      }
+    }
+
+    try {
+      const hasName = Object.prototype.hasOwnProperty.call(next, 'name');
+      const hasHandle = Object.prototype.hasOwnProperty.call(next, 'handle');
+      const hasEmail = Object.prototype.hasOwnProperty.call(next, 'email');
+      const hasBio = Object.prototype.hasOwnProperty.call(next, 'bio');
+      const hasAvatarUrl = Object.prototype.hasOwnProperty.call(next, 'avatarUrl');
+      const hasAvatarThumbUrl = Object.prototype.hasOwnProperty.call(next, 'avatarThumbUrl');
+      const hasHomeServerId = Object.prototype.hasOwnProperty.call(next, 'homeServerId');
+
+      const result = await pool.query(
+        `
+        UPDATE users
+        SET
+          name = CASE WHEN $9::boolean THEN $2 ELSE name END,
+          handle = CASE WHEN $10::boolean THEN $3 ELSE handle END,
+          email = CASE WHEN $11::boolean THEN $4 ELSE email END,
+          bio = CASE WHEN $12::boolean THEN $5 ELSE bio END,
+          avatar_url = CASE WHEN $13::boolean THEN $6 ELSE avatar_url END,
+          avatar_thumb_url = CASE WHEN $14::boolean THEN $7 ELSE avatar_thumb_url END,
+          home_server_id = CASE WHEN $15::boolean THEN $8 ELSE home_server_id END,
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING id, email, handle, name, avatar_url, avatar_thumb_url, bio, home_server_id, created_at
+        `,
+        [
+          userId,
+          next.name ?? null,
+          next.handle ?? null,
+          next.email?.toLowerCase() ?? null,
+          next.bio ?? null,
+          next.avatarUrl ?? null,
+          next.avatarThumbUrl ?? null,
+          next.homeServerId ?? null,
+          hasName,
+          hasHandle,
+          hasEmail,
+          hasBio,
+          hasAvatarUrl,
+          hasAvatarThumbUrl,
+          hasHomeServerId
+        ]
+      );
+
+      return { user: result.rows[0] };
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(409).send({ error: 'Email or handle already in use' });
+    }
   });
 
   app.post('/api/servers', { preHandler: authGuard }, async (request, reply) => {

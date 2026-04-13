@@ -97,3 +97,6 @@ All notable changes to this project are tracked here.
 - Added client-side accessibility preferences (text size + contrast) with first-login onboarding redirect
 - Adjusted accessibility text-size presets: compact 10px, comfortable 14px, large 18px
 - Added red/green colorblind-safe accessibility theme option (`rg-safe`) with blue/orange emphasis
+- Expanded profile model with `home_server_id` and `avatar_thumb_url` via migration `0007_user_profile_fields.sql`
+- Added profile update API (`PATCH /api/me`) for name, handle, email, bio, avatar URLs, and home server id
+- Expanded profile workspace UI with editable fields, home server selector, and profile photos strip from user-tagged library media

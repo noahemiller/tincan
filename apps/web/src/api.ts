@@ -10,6 +10,8 @@ export type AuthResult = {
     handle: string;
     name: string;
     avatar_url?: string | null;
+    avatar_thumb_url?: string | null;
+    home_server_id?: string | null;
     bio?: string | null;
   };
 };
@@ -44,6 +46,18 @@ export const api = {
     request<{ ok: boolean }>('/api/auth/logout', { method: 'POST', body: JSON.stringify(payload) }),
   logoutAll: (token: string) => request<{ ok: boolean }>('/api/auth/logout-all', { method: 'POST', body: '{}' }, token),
   me: (token: string) => request<{ user: AuthResult['user'] }>('/api/me', {}, token),
+  updateMe: (
+    token: string,
+    payload: {
+      name?: string;
+      handle?: string;
+      email?: string;
+      bio?: string | null;
+      avatarUrl?: string | null;
+      avatarThumbUrl?: string | null;
+      homeServerId?: string | null;
+    }
+  ) => request<{ user: AuthResult['user'] }>('/api/me', { method: 'PATCH', body: JSON.stringify(payload) }, token),
   servers: (token: string) =>
     request<{ servers: { id: string; name: string; slug: string; role: 'owner' | 'admin' | 'member' }[] }>(
       '/api/servers',

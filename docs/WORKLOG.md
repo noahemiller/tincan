@@ -122,3 +122,6 @@
 - Added persisted UI preferences (`tincan_ui_prefs_v1`) plus first-login accessibility onboarding flow
 - Updated accessibility text scale presets to 10px/14px/18px (compact/comfortable/large)
 - Added red-green colorblind-safe UI mode with distinct blue/orange palette and safer contrast variables
+- Added migration for user profile fields: `home_server_id` and `avatar_thumb_url`
+- Added authenticated profile update endpoint and validation, including membership check for selected home server
+- Built richer Profile view in account workspace with editable identity fields, avatar full/thumb URLs, bio, and user media gallery

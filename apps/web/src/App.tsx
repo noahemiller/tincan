@@ -7,6 +7,10 @@ type User = {
   email: string;
   handle: string;
   name: string;
+  avatar_url?: string | null;
+  avatar_thumb_url?: string | null;
+  home_server_id?: string | null;
+  bio?: string | null;
 };
 
 type Server = {
@@ -355,6 +359,15 @@ export function App() {
   const [userCommandForm, setUserCommandForm] = useState({ command: '', responseText: '' });
   const [serverCommandForm, setServerCommandForm] = useState({ command: '', responseText: '' });
   const [uiPrefs, setUiPrefs] = useState<UiPrefs>(() => loadUiPrefs());
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    handle: '',
+    email: '',
+    bio: '',
+    avatarUrl: '',
+    avatarThumbUrl: '',
+    homeServerId: ''
+  });
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
 
   const selectedServer = useMemo(
@@ -382,6 +395,14 @@ export function App() {
   const visibleChannels = useMemo(
     () => channels.filter((channel) => !showUnreadOnly || (unreadCountByChannel.get(channel.id) ?? 0) > 0),
     [channels, showUnreadOnly, unreadCountByChannel]
+  );
+
+  const profilePhotos = useMemo(
+    () =>
+      libraryItems
+        .filter((item) => item.item_type === 'media' && item.posted_by_user_id === user?.id && item.media_url)
+        .slice(0, 24),
+    [libraryItems, user?.id]
   );
 
   const libraryItemsById = useMemo(() => {
@@ -647,6 +668,21 @@ export function App() {
   useEffect(() => {
     localStorage.setItem(UI_PREFS_KEY, JSON.stringify(uiPrefs));
   }, [uiPrefs]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    setProfileForm({
+      name: user.name ?? '',
+      handle: user.handle ?? '',
+      email: user.email ?? '',
+      bio: user.bio ?? '',
+      avatarUrl: user.avatar_url ?? '',
+      avatarThumbUrl: user.avatar_thumb_url ?? '',
+      homeServerId: user.home_server_id ?? ''
+    });
+  }, [user]);
 
   useEffect(() => {
     if (!accountMenuOpen) {
@@ -1491,6 +1527,32 @@ export function App() {
     setAccountMenuOpen(false);
   }
 
+  async function onSaveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      const result = await api.updateMe(token, {
+        name: profileForm.name.trim(),
+        handle: profileForm.handle.trim(),
+        email: profileForm.email.trim().toLowerCase(),
+        bio: profileForm.bio.trim() || null,
+        avatarUrl: profileForm.avatarUrl.trim() || null,
+        avatarThumbUrl: profileForm.avatarThumbUrl.trim() || null,
+        homeServerId: profileForm.homeServerId || null
+      });
+      setUser(result.user);
+      setError('');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Failed to save profile');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!token || !user) {
     return (
       <main className="auth-shell">
@@ -2286,19 +2348,96 @@ export function App() {
               <article className="account-card">
                 <h3>Profile</h3>
                 <p className="panel-note">This identity appears across your private servers.</p>
-                <div className="account-grid">
-                  <label>
-                    Name
-                    <input value={user.name} readOnly />
-                  </label>
-                  <label>
-                    Handle
-                    <input value={`@${user.handle}`} readOnly />
-                  </label>
-                  <label>
-                    Email
-                    <input value={user.email} readOnly />
-                  </label>
+                <form autoComplete="off" className="account-profile-form" onSubmit={onSaveProfile}>
+                  <div className="account-grid">
+                    <label>
+                      User ID
+                      <input value={user.id} readOnly />
+                    </label>
+                    <label>
+                      Home server ID
+                      <select
+                        value={profileForm.homeServerId}
+                        onChange={(event) => setProfileForm((prev) => ({ ...prev, homeServerId: event.target.value }))}
+                      >
+                        <option value="">None selected</option>
+                        {servers.map((server) => (
+                          <option key={server.id} value={server.id}>
+                            {server.name} ({server.id.slice(0, 8)})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Name
+                      <input
+                        value={profileForm.name}
+                        onChange={(event) => setProfileForm((prev) => ({ ...prev, name: event.target.value }))}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Handle
+                      <input
+                        value={profileForm.handle}
+                        onChange={(event) => setProfileForm((prev) => ({ ...prev, handle: event.target.value }))}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Email
+                      <input
+                        type="email"
+                        value={profileForm.email}
+                        onChange={(event) => setProfileForm((prev) => ({ ...prev, email: event.target.value }))}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Avatar URL (full size)
+                      <input
+                        type="url"
+                        value={profileForm.avatarUrl}
+                        onChange={(event) => setProfileForm((prev) => ({ ...prev, avatarUrl: event.target.value }))}
+                        placeholder="https://..."
+                      />
+                    </label>
+                    <label>
+                      Avatar URL (thumb)
+                      <input
+                        type="url"
+                        value={profileForm.avatarThumbUrl}
+                        onChange={(event) => setProfileForm((prev) => ({ ...prev, avatarThumbUrl: event.target.value }))}
+                        placeholder="https://..."
+                      />
+                    </label>
+                    <label className="account-grid-full">
+                      Bio
+                      <textarea
+                        rows={4}
+                        value={profileForm.bio}
+                        onChange={(event) => setProfileForm((prev) => ({ ...prev, bio: event.target.value }))}
+                        placeholder="Tell your friends who you are."
+                      />
+                    </label>
+                  </div>
+                  <div className="metadata-actions">
+                    <button type="submit" disabled={busy}>
+                      Save Profile
+                    </button>
+                  </div>
+                </form>
+                <div className="profile-photos">
+                  <h4>Profile Photos</h4>
+                  <p className="panel-note">Images you posted to this server library (tagged by your user id).</p>
+                  <div className="profile-photo-grid">
+                    {profilePhotos.map((item) => (
+                      <a key={item.id} href={item.media_url || '#'} target="_blank" rel="noreferrer">
+                        <img src={item.media_url || ''} alt={item.title || item.id} />
+                      </a>
+                    ))}
+                    {profilePhotos.length === 0 ? <span className="panel-note">No profile photos yet.</span> : null}
+                  </div>
                 </div>
               </article>
             ) : null}

@@ -1,0 +1,6 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS home_server_id UUID REFERENCES servers(id) ON DELETE SET NULL;
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS avatar_thumb_url TEXT;
+
