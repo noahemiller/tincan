@@ -28,6 +28,7 @@
 - Added `apps/web/public/tincan-logo.svg` and switched auth/rail logo image sources from PNG to SVG
 - Updated `index.html` favicon declaration to prefer SVG icon with existing `.ico` fallback
 - Removed border/background box styling from rail logo and increased brand mark height to 64px
+- Removed the full-canvas white background path from `apps/web/public/tincan-logo.svg`
 
 ## 2026-04-12
 

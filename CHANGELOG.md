@@ -70,5 +70,6 @@ All notable changes to this project are tracked here.
 - Tuned rail icons to contained scaling with inset padding so full icon art remains visible
 - Switched app logo references to SVG (`tincan-logo.svg`) and enabled SVG favicon preference with ICO fallback
 - Restyled rail logo as standalone branding (no boxed/button chrome) and increased logo size for clearer separation from nav buttons
+- Removed the white background shape from `tincan-logo.svg` to preserve transparency
 - Web MVP (React + Vite shell with auth, server/channel/message flows)
 - Docker Compose stack and setup/version documentation
