@@ -574,7 +574,6 @@ export function App() {
   const selectedChannelThemeStyle = useMemo(() => {
     if (
       !selectedChannelId ||
-      centerPane !== "chat" ||
       !selectedChannelModuleConfig.ui.colorTheme.enabled
     ) {
       return undefined;
@@ -599,7 +598,7 @@ export function App() {
       ["--muted-foreground" as const]: mutedForeground,
       ["--accent-foreground" as const]: foreground,
     } as CSSProperties;
-  }, [selectedChannelId, centerPane, selectedChannelModuleConfig]);
+  }, [selectedChannelId, selectedChannelModuleConfig]);
   const selectedCollection = useMemo(
     () =>
       collections.find(
@@ -2282,6 +2281,7 @@ export function App() {
   return (
     <main
       className={`app-shell size-${uiPrefs.textSize} contrast-${uiPrefs.contrast}`}
+      style={selectedChannelThemeStyle}
     >
       <Rail activeTab={leftRailTab} onTabChange={onRailTabChange} />
 
@@ -2319,10 +2319,7 @@ export function App() {
         onCreateChannel={onCreateChannel}
       />
 
-      <section
-        className="flex flex-col overflow-hidden border-r border-border bg-background"
-        style={selectedChannelThemeStyle}
-      >
+      <section className="flex flex-col overflow-hidden border-r border-border bg-background">
         {/* ── Global toolbar: search + library toggle + account menu ── */}
         <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-border shrink-0">
           <div className="flex items-center gap-2 flex-1 min-w-0">
