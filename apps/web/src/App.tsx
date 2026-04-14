@@ -137,13 +137,10 @@ type ChannelModuleConfig = {
     borderWidthPx: number;
     colorTheme: {
       enabled: boolean;
-      background: string;
-      card: string;
-      accent: string;
-      primary: string;
-      border: string;
-      foreground: string;
-      mutedForeground: string;
+      backgroundBase: string;
+      backgroundAlt: string;
+      main: string;
+      highlight: string;
     };
   };
   notifications: {
@@ -203,13 +200,10 @@ function defaultChannelModuleConfig(): ChannelModuleConfig {
       borderWidthPx: 1,
       colorTheme: {
         enabled: false,
-        background: "#FFFBDB",
-        card: "#FFFFFF",
-        accent: "#CDC7E5",
-        primary: "#7776BC",
-        border: "#D9D5E8",
-        foreground: "#1F1C2E",
-        mutedForeground: "#6C6678",
+        backgroundBase: "#FFFBDB",
+        backgroundAlt: "#FFFFFF",
+        main: "#7776BC",
+        highlight: "#CDC7E5",
       },
     },
     notifications: {
@@ -229,6 +223,28 @@ function normalizeHexColor(
   const trimmed = value.trim();
   const isHex = /^#([0-9a-fA-F]{6})$/.test(trimmed);
   return isHex ? trimmed.toUpperCase() : fallback;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const match = /^#([0-9a-fA-F]{6})$/.exec(hex);
+  if (!match) {
+    return null;
+  }
+  const value = match[1];
+  return {
+    r: Number.parseInt(value.slice(0, 2), 16),
+    g: Number.parseInt(value.slice(2, 4), 16),
+    b: Number.parseInt(value.slice(4, 6), 16),
+  };
+}
+
+function isLightHex(hex: string): boolean {
+  const rgb = hexToRgb(hex);
+  if (!rgb) {
+    return true;
+  }
+  const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+  return luminance >= 0.62;
 }
 
 function sanitizeChannelModuleConfig(
@@ -265,15 +281,25 @@ function sanitizeChannelModuleConfig(
           : 1,
       colorTheme: {
         enabled: colorThemeInput.enabled === true,
-        background: normalizeHexColor(colorThemeInput.background, "#FFFBDB"),
-        card: normalizeHexColor(colorThemeInput.card, "#FFFFFF"),
-        accent: normalizeHexColor(colorThemeInput.accent, "#CDC7E5"),
-        primary: normalizeHexColor(colorThemeInput.primary, "#7776BC"),
-        border: normalizeHexColor(colorThemeInput.border, "#D9D5E8"),
-        foreground: normalizeHexColor(colorThemeInput.foreground, "#1F1C2E"),
-        mutedForeground: normalizeHexColor(
-          colorThemeInput.mutedForeground,
-          "#6C6678",
+        backgroundBase: normalizeHexColor(
+          (colorThemeInput as { backgroundBase?: unknown; background?: unknown })
+            .backgroundBase ?? (colorThemeInput as { background?: unknown }).background,
+          "#FFFBDB",
+        ),
+        backgroundAlt: normalizeHexColor(
+          (colorThemeInput as { backgroundAlt?: unknown; card?: unknown })
+            .backgroundAlt ?? (colorThemeInput as { card?: unknown }).card,
+          "#FFFFFF",
+        ),
+        main: normalizeHexColor(
+          (colorThemeInput as { main?: unknown; primary?: unknown }).main ??
+            (colorThemeInput as { primary?: unknown }).primary,
+          "#7776BC",
+        ),
+        highlight: normalizeHexColor(
+          (colorThemeInput as { highlight?: unknown; accent?: unknown })
+            .highlight ?? (colorThemeInput as { accent?: unknown }).accent,
+          "#CDC7E5",
         ),
       },
     },
@@ -554,20 +580,24 @@ export function App() {
       return undefined;
     }
     const theme = selectedChannelModuleConfig.ui.colorTheme;
+    const isLight = isLightHex(theme.backgroundBase);
+    const foreground = isLight ? "#1F1C2E" : "#F8F8FC";
+    const mutedForeground = isLight ? "#6C6678" : "#C9C3D6";
+    const border = theme.highlight;
     return {
-      ["--background" as const]: theme.background,
-      ["--card" as const]: theme.card,
-      ["--popover" as const]: theme.card,
-      ["--accent" as const]: theme.accent,
-      ["--primary" as const]: theme.primary,
-      ["--border" as const]: theme.border,
-      ["--input" as const]: theme.border,
-      ["--ring" as const]: theme.primary,
-      ["--foreground" as const]: theme.foreground,
-      ["--card-foreground" as const]: theme.foreground,
-      ["--popover-foreground" as const]: theme.foreground,
-      ["--muted-foreground" as const]: theme.mutedForeground,
-      ["--accent-foreground" as const]: theme.foreground,
+      ["--background" as const]: theme.backgroundBase,
+      ["--card" as const]: theme.backgroundAlt,
+      ["--popover" as const]: theme.backgroundAlt,
+      ["--accent" as const]: theme.highlight,
+      ["--primary" as const]: theme.main,
+      ["--border" as const]: border,
+      ["--input" as const]: border,
+      ["--ring" as const]: theme.main,
+      ["--foreground" as const]: foreground,
+      ["--card-foreground" as const]: foreground,
+      ["--popover-foreground" as const]: foreground,
+      ["--muted-foreground" as const]: mutedForeground,
+      ["--accent-foreground" as const]: foreground,
     } as CSSProperties;
   }, [selectedChannelId, centerPane, selectedChannelModuleConfig]);
   const selectedCollection = useMemo(
@@ -2717,10 +2747,10 @@ export function App() {
                   </label>
                   <div className="grid grid-cols-2 gap-3 max-w-[520px]">
                     <label className="flex items-center justify-between gap-2 text-xs">
-                      Background
+                      Background 1
                       <Input
                         type="color"
-                        value={selectedChannelModuleConfig.ui.colorTheme.background}
+                        value={selectedChannelModuleConfig.ui.colorTheme.backgroundBase}
                         onChange={(event) =>
                           updateSelectedChannelModuleConfig((prev) => ({
                             ...prev,
@@ -2728,7 +2758,7 @@ export function App() {
                               ...prev.ui,
                               colorTheme: {
                                 ...prev.ui.colorTheme,
-                                background: event.target.value.toUpperCase(),
+                                backgroundBase: event.target.value.toUpperCase(),
                               },
                             },
                           }))
@@ -2737,10 +2767,10 @@ export function App() {
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-xs">
-                      Card
+                      Background 2
                       <Input
                         type="color"
-                        value={selectedChannelModuleConfig.ui.colorTheme.card}
+                        value={selectedChannelModuleConfig.ui.colorTheme.backgroundAlt}
                         onChange={(event) =>
                           updateSelectedChannelModuleConfig((prev) => ({
                             ...prev,
@@ -2748,7 +2778,7 @@ export function App() {
                               ...prev.ui,
                               colorTheme: {
                                 ...prev.ui.colorTheme,
-                                card: event.target.value.toUpperCase(),
+                                backgroundAlt: event.target.value.toUpperCase(),
                               },
                             },
                           }))
@@ -2757,10 +2787,10 @@ export function App() {
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-xs">
-                      Accent
+                      Main color
                       <Input
                         type="color"
-                        value={selectedChannelModuleConfig.ui.colorTheme.accent}
+                        value={selectedChannelModuleConfig.ui.colorTheme.main}
                         onChange={(event) =>
                           updateSelectedChannelModuleConfig((prev) => ({
                             ...prev,
@@ -2768,7 +2798,7 @@ export function App() {
                               ...prev.ui,
                               colorTheme: {
                                 ...prev.ui.colorTheme,
-                                accent: event.target.value.toUpperCase(),
+                                main: event.target.value.toUpperCase(),
                               },
                             },
                           }))
@@ -2777,10 +2807,10 @@ export function App() {
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-xs">
-                      Primary
+                      Highlight
                       <Input
                         type="color"
-                        value={selectedChannelModuleConfig.ui.colorTheme.primary}
+                        value={selectedChannelModuleConfig.ui.colorTheme.highlight}
                         onChange={(event) =>
                           updateSelectedChannelModuleConfig((prev) => ({
                             ...prev,
@@ -2788,70 +2818,7 @@ export function App() {
                               ...prev.ui,
                               colorTheme: {
                                 ...prev.ui.colorTheme,
-                                primary: event.target.value.toUpperCase(),
-                              },
-                            },
-                          }))
-                        }
-                        className="h-7 w-16 p-1"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between gap-2 text-xs">
-                      Border
-                      <Input
-                        type="color"
-                        value={selectedChannelModuleConfig.ui.colorTheme.border}
-                        onChange={(event) =>
-                          updateSelectedChannelModuleConfig((prev) => ({
-                            ...prev,
-                            ui: {
-                              ...prev.ui,
-                              colorTheme: {
-                                ...prev.ui.colorTheme,
-                                border: event.target.value.toUpperCase(),
-                              },
-                            },
-                          }))
-                        }
-                        className="h-7 w-16 p-1"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between gap-2 text-xs">
-                      Text
-                      <Input
-                        type="color"
-                        value={selectedChannelModuleConfig.ui.colorTheme.foreground}
-                        onChange={(event) =>
-                          updateSelectedChannelModuleConfig((prev) => ({
-                            ...prev,
-                            ui: {
-                              ...prev.ui,
-                              colorTheme: {
-                                ...prev.ui.colorTheme,
-                                foreground: event.target.value.toUpperCase(),
-                              },
-                            },
-                          }))
-                        }
-                        className="h-7 w-16 p-1"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between gap-2 text-xs">
-                      Muted text
-                      <Input
-                        type="color"
-                        value={
-                          selectedChannelModuleConfig.ui.colorTheme
-                            .mutedForeground
-                        }
-                        onChange={(event) =>
-                          updateSelectedChannelModuleConfig((prev) => ({
-                            ...prev,
-                            ui: {
-                              ...prev.ui,
-                              colorTheme: {
-                                ...prev.ui.colorTheme,
-                                mutedForeground: event.target.value.toUpperCase(),
+                                highlight: event.target.value.toUpperCase(),
                               },
                             },
                           }))
