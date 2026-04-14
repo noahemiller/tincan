@@ -80,9 +80,9 @@
   }
 
   /* ─── Text size presets ────────────────────────────────────────────────── */
-  .app-shell.size-compact     { font-size: 11px; }
+  .app-shell.size-compact     { font-size: 10px; }
   .app-shell.size-comfortable { font-size: 14px; }
-  .app-shell.size-large       { font-size: 18px; }
+  .app-shell.size-large       { font-size: 22px; }
 
   * { box-sizing: border-box; }
 

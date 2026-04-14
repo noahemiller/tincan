@@ -310,8 +310,8 @@ export function AccountWorkspace({
                   setUiPrefs((prev) => ({ ...prev, textSize: e.target.value as UiPrefs['textSize'] }))
                 }
               >
-                <option value="compact">Compact</option>
-                <option value="comfortable">Comfortable</option>
+                <option value="compact">Small</option>
+                <option value="comfortable">Medium</option>
                 <option value="large">Large</option>
               </select>
             </label>

@@ -14,8 +14,9 @@ Channel-level module tuning is available in the channel settings accordion (gear
 - UI toggles:
   - Show avatars
   - Message density (comfortable/compact)
-  - Corner radius
-  - Border thickness
+  - Corner radius (0-96)
+  - Border thickness (0-24)
+  - Channel color theme (toggle + curated color set)
 - Notification behavior:
   - Auto-mark read at bottom
   - Show unread badge
