@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/ThemeProvider";
@@ -35,6 +36,7 @@ type MessageListProps = {
   linkPreviews: Record<string, LinkPreview>;
   onOpenThread: (rootMessageId: string) => void;
   onOpenLightbox: (attachmentId: string) => void;
+  onBottomStateChange?: (atBottom: boolean) => void;
 };
 
 export function MessageList({
@@ -42,10 +44,44 @@ export function MessageList({
   linkPreviews,
   onOpenThread,
   onOpenLightbox,
+  onBottomStateChange,
 }: MessageListProps) {
   const { resolvedTheme } = useTheme();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const reportBottom = useCallback(() => {
+    if (!onBottomStateChange) {
+      return;
+    }
+    const node = containerRef.current;
+    if (!node) {
+      return;
+    }
+    const threshold = 12;
+    const atBottom =
+      node.scrollTop + node.clientHeight >= node.scrollHeight - threshold;
+    onBottomStateChange(atBottom);
+  }, [onBottomStateChange]);
+
+  useEffect(() => {
+    reportBottom();
+  }, [messages.length, reportBottom]);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) {
+      return;
+    }
+    const onScroll = () => reportBottom();
+    node.addEventListener("scroll", onScroll, { passive: true });
+    return () => node.removeEventListener("scroll", onScroll);
+  }, [reportBottom]);
+
   return (
-    <div className="flex flex-col gap-1.5 py-3 overflow-y-auto">
+    <div
+      ref={containerRef}
+      className="flex flex-col gap-1.5 py-3 overflow-y-auto"
+    >
       {messages.map((message) => (
         <article
           key={message.id}

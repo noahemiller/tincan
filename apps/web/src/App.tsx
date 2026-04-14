@@ -367,6 +367,8 @@ export function App() {
     confirmNewPassword: "",
   });
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const markReadInFlightRef = useRef<string | null>(null);
+  const lastMarkedReadByChannelRef = useRef<Record<string, string>>({});
 
   const selectedServer = useMemo(
     () => servers.find((server) => server.id === selectedServerId) ?? null,
@@ -1680,6 +1682,46 @@ export function App() {
     setUnread(unreadResult.unread);
   }
 
+  async function onMessageListBottomStateChange(atBottom: boolean) {
+    if (!atBottom || !token || !selectedChannelId || messages.length === 0) {
+      return;
+    }
+
+    const latestMessageId = messages[messages.length - 1]?.id;
+    if (!latestMessageId) {
+      return;
+    }
+
+    const unreadCount = unreadCountByChannel.get(selectedChannelId) ?? 0;
+    const lastMarked =
+      lastMarkedReadByChannelRef.current[selectedChannelId] ?? "";
+    const inFlightKey = `${selectedChannelId}:${latestMessageId}`;
+
+    if (markReadInFlightRef.current === inFlightKey) {
+      return;
+    }
+    if (unreadCount === 0 && lastMarked === latestMessageId) {
+      return;
+    }
+
+    markReadInFlightRef.current = inFlightKey;
+
+    try {
+      await api.markChannelRead(token, selectedChannelId, {
+        lastReadMessageId: latestMessageId,
+      });
+      lastMarkedReadByChannelRef.current[selectedChannelId] = latestMessageId;
+      const unreadResult = await api.unread(token);
+      setUnread(unreadResult.unread);
+    } catch {
+      // Non-blocking: read-state sync can fail transiently without breaking chat.
+    } finally {
+      if (markReadInFlightRef.current === inFlightKey) {
+        markReadInFlightRef.current = null;
+      }
+    }
+  }
+
   async function logout() {
     if (refreshToken) {
       try {
@@ -2116,6 +2158,9 @@ export function App() {
             linkPreviews={linkPreviews}
             onOpenThread={(id) => void onOpenThread(id)}
             onOpenLightbox={onOpenLightbox}
+            onBottomStateChange={(atBottom) => {
+              void onMessageListBottomStateChange(atBottom);
+            }}
           />
         ) : centerPane === "library" ? (
           <LibraryWorkspace

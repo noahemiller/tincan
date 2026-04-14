@@ -234,6 +234,12 @@ export const api = {
       { method: 'PUT', body: JSON.stringify(payload) },
       token
     ),
+  markChannelRead: (token: string, channelId: string, payload?: { lastReadMessageId?: string }) =>
+    request<{ ok: boolean }>(
+      `/api/channels/${channelId}/read`,
+      { method: 'POST', body: JSON.stringify(payload ?? {}) },
+      token
+    ),
   fetchLinkPreviews: (token: string, urls: string[]) =>
     request<{
       previews: {
