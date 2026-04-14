@@ -141,6 +141,8 @@ type ChannelModuleConfig = {
       backgroundAlt: string;
       main: string;
       highlight: string;
+      text: string;
+      border: string;
     };
   };
   notifications: {
@@ -204,6 +206,8 @@ function defaultChannelModuleConfig(): ChannelModuleConfig {
         backgroundAlt: "#FFFFFF",
         main: "#7776BC",
         highlight: "#CDC7E5",
+        text: "#1F1C2E",
+        border: "#CDC7E5",
       },
     },
     notifications: {
@@ -299,6 +303,15 @@ function sanitizeChannelModuleConfig(
         highlight: normalizeHexColor(
           (colorThemeInput as { highlight?: unknown; accent?: unknown })
             .highlight ?? (colorThemeInput as { accent?: unknown }).accent,
+          "#CDC7E5",
+        ),
+        text: normalizeHexColor(
+          (colorThemeInput as { text?: unknown; foreground?: unknown }).text ??
+            (colorThemeInput as { foreground?: unknown }).foreground,
+          "#1F1C2E",
+        ),
+        border: normalizeHexColor(
+          (colorThemeInput as { border?: unknown }).border,
           "#CDC7E5",
         ),
       },
@@ -580,9 +593,9 @@ export function App() {
     }
     const theme = selectedChannelModuleConfig.ui.colorTheme;
     const isLight = isLightHex(theme.backgroundBase);
-    const foreground = isLight ? "#1F1C2E" : "#F8F8FC";
+    const foreground = theme.text;
     const mutedForeground = isLight ? "#6C6678" : "#C9C3D6";
-    const border = theme.highlight;
+    const border = theme.border;
     return {
       ["--background" as const]: theme.backgroundBase,
       ["--card" as const]: theme.backgroundAlt,
@@ -2745,7 +2758,7 @@ export function App() {
                   <div className="grid grid-cols-2 gap-3 max-w-[520px]">
                     <label className="flex items-center justify-between gap-2 text-xs">
                       Background 1
-                      <Input
+                      <input
                         type="color"
                         value={selectedChannelModuleConfig.ui.colorTheme.backgroundBase}
                         onChange={(event) =>
@@ -2760,12 +2773,12 @@ export function App() {
                             },
                           }))
                         }
-                        className="h-7 w-16 p-1"
+                        className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-xs">
                       Background 2
-                      <Input
+                      <input
                         type="color"
                         value={selectedChannelModuleConfig.ui.colorTheme.backgroundAlt}
                         onChange={(event) =>
@@ -2780,12 +2793,12 @@ export function App() {
                             },
                           }))
                         }
-                        className="h-7 w-16 p-1"
+                        className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-xs">
                       Main color
-                      <Input
+                      <input
                         type="color"
                         value={selectedChannelModuleConfig.ui.colorTheme.main}
                         onChange={(event) =>
@@ -2800,12 +2813,12 @@ export function App() {
                             },
                           }))
                         }
-                        className="h-7 w-16 p-1"
+                        className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 text-xs">
                       Highlight
-                      <Input
+                      <input
                         type="color"
                         value={selectedChannelModuleConfig.ui.colorTheme.highlight}
                         onChange={(event) =>
@@ -2820,7 +2833,47 @@ export function App() {
                             },
                           }))
                         }
-                        className="h-7 w-16 p-1"
+                        className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-2 text-xs">
+                      Text
+                      <input
+                        type="color"
+                        value={selectedChannelModuleConfig.ui.colorTheme.text}
+                        onChange={(event) =>
+                          updateSelectedChannelModuleConfig((prev) => ({
+                            ...prev,
+                            ui: {
+                              ...prev.ui,
+                              colorTheme: {
+                                ...prev.ui.colorTheme,
+                                text: event.target.value.toUpperCase(),
+                              },
+                            },
+                          }))
+                        }
+                        className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-2 text-xs">
+                      Border
+                      <input
+                        type="color"
+                        value={selectedChannelModuleConfig.ui.colorTheme.border}
+                        onChange={(event) =>
+                          updateSelectedChannelModuleConfig((prev) => ({
+                            ...prev,
+                            ui: {
+                              ...prev.ui,
+                              colorTheme: {
+                                ...prev.ui.colorTheme,
+                                border: event.target.value.toUpperCase(),
+                              },
+                            },
+                          }))
+                        }
+                        className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
                       />
                     </label>
                   </div>

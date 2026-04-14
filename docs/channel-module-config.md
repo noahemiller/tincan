@@ -21,6 +21,8 @@ Channel-level module tuning is available in the channel settings accordion (gear
     - Background 2
     - Main color
     - Highlight
+    - Text
+    - Border
 - Notification behavior:
   - Auto-mark read at bottom
   - Show unread badge
