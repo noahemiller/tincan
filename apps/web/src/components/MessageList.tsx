@@ -132,7 +132,7 @@ export function MessageList({
                   return (
                     <article
                       key={`${message.id}-${url}`}
-                      className="rounded-lg border border-border p-2.5 flex flex-col gap-2"
+                      className="w-full max-w-[980px] rounded-lg border border-border p-2.5 flex flex-col gap-2"
                     >
                       <iframe
                         src={musicPreview.embedUrl}
@@ -180,7 +180,7 @@ export function MessageList({
                   return (
                     <article
                       key={`${message.id}-${url}`}
-                      className="rounded-lg border border-border bg-muted p-2.5 flex flex-col gap-2"
+                      className="w-full max-w-[980px] rounded-lg border border-border bg-muted p-2.5 flex flex-col gap-2"
                     >
                       <iframe
                         src={youtubeEmbedUrl}
