@@ -1,4 +1,12 @@
 services:
+  deps:
+    image: node:22-alpine
+    working_dir: /workspace
+    command: >
+      sh -lc "corepack enable && CI=true pnpm install --frozen-lockfile"
+    volumes:
+      - ./:/workspace
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -38,6 +46,8 @@ services:
     volumes:
       - ./:/workspace
     depends_on:
+      deps:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -55,7 +65,10 @@ services:
     volumes:
       - ./:/workspace
     depends_on:
-      - api
+      deps:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
 
 volumes:
   postgres_data:

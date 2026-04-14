@@ -1,0 +1,2 @@
+# Normalize text files to LF in the repo (matches typical CI/Linux defaults).
+* text=auto eol=lf

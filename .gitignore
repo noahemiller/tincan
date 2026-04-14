@@ -12,3 +12,8 @@ coverage
 .DS_Store
 *.log
 apps/api/uploads
+
+# Local tooling / caches
+.claude/
+.eslintcache
+.cache/

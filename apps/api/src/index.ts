@@ -14,9 +14,19 @@ import { refreshDueLinkPreviews } from './modules/link-previews.js';
 
 async function main() {
   const app = Fastify({ logger: true });
+  const allowedOrigins = config.corsOrigin
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
 
   await app.register(cors, {
-    origin: config.corsOrigin,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error('Not allowed by CORS'), false);
+    },
     credentials: true
   });
   await app.register(multipart, {
