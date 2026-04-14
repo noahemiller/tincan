@@ -1,4 +1,12 @@
 services:
+  deps:
+    image: node:22-alpine
+    working_dir: /workspace
+    command: >
+      sh -lc "corepack enable && CI=true pnpm install --frozen-lockfile"
+    volumes:
+      - ./:/workspace
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -26,7 +34,7 @@ services:
     image: node:22-alpine
     working_dir: /workspace
     command: >
-      sh -lc "corepack enable && CI=true pnpm install --frozen-lockfile && pnpm --filter @tincan/api build && pnpm --filter @tincan/api start"
+      sh -lc "corepack enable && pnpm --filter @tincan/api build && pnpm --filter @tincan/api start"
     environment:
       PORT: ${API_PORT:-4000}
       DATABASE_URL: postgresql://${POSTGRES_USER:-tincan}:${POSTGRES_PASSWORD:-tincan}@postgres:5432/${POSTGRES_DB:-tincan}
@@ -38,6 +46,8 @@ services:
     volumes:
       - ./:/workspace
     depends_on:
+      deps:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -47,7 +57,7 @@ services:
     image: node:22-alpine
     working_dir: /workspace
     command: >
-      sh -lc "corepack enable && CI=true pnpm install --frozen-lockfile && pnpm --filter @tincan/web dev --host 0.0.0.0 --port 5173"
+      sh -lc "corepack enable && pnpm --filter @tincan/web dev --host 0.0.0.0 --port 5173"
     environment:
       VITE_API_URL: http://localhost:${API_PORT:-4000}
     ports:
@@ -55,7 +65,10 @@ services:
     volumes:
       - ./:/workspace
     depends_on:
-      - api
+      deps:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
 
 volumes:
   postgres_data:
