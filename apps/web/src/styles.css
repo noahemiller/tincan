@@ -144,28 +144,34 @@
 
 /* ─── Accordion (channel settings) ──────────────────────────────────────── */
 .channel-settings-accordion {
-  max-height: 0;
+  display: grid;
+  grid-template-rows: 0fr;
   opacity: 0;
-  overflow: hidden;
+  visibility: hidden;
   pointer-events: none;
   border-bottom: 1px solid transparent;
   transition:
-    max-height 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 200ms ease,
-    border-color 200ms ease;
+    border-color 200ms ease,
+    visibility 0s linear 220ms;
+}
+
+.channel-settings-content {
+  overflow: hidden;
 }
 
 .channel-settings-accordion.open {
-  max-height: 160px;
+  grid-template-rows: 1fr;
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
   border-bottom-color: var(--border);
-}
-
-@media (max-width: 860px) {
-  .channel-settings-accordion.open {
-    max-height: 260px;
-  }
+  transition:
+    grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease,
+    border-color 200ms ease,
+    visibility 0s linear 0s;
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */

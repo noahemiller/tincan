@@ -19,6 +19,7 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { extractUrls } from "./lib/chat";
 import { DesignSystemPage } from "./components/DesignSystemPage";
+import { Settings2 } from "lucide-react";
 
 import { api } from "./api";
 
@@ -2092,13 +2093,14 @@ export function App() {
             <Button
               type="button"
               variant="ghost"
-              size=""
-              className="h-7 w-7 p-0 text-muted-foreground"
+              size="icon-sm"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
               aria-label="Channel settings"
+              title="Channel alert settings"
               disabled={!selectedChannelId}
               onClick={() => setChannelSettingsOpen((prev) => !prev)}
             >
-              ⚙
+              <Settings2 className="h-4 w-4" />
             </Button>
           )}
         </div>
@@ -2109,43 +2111,45 @@ export function App() {
             className={`channel-settings-accordion${channelSettingsOpen ? " open" : ""}`}
             aria-hidden={!channelSettingsOpen}
           >
-            <form
-              autoComplete="off"
-              className="grid grid-cols-[1fr_1fr_auto] gap-3 px-3 py-2.5 bg-muted/50 items-end"
-              onSubmit={onSaveChannelPreference}
-            >
-              <label className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
-                Mode
-                <select
-                  className="rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  value={channelMode}
-                  onChange={(event) =>
-                    setChannelMode(
-                      event.target.value as "hidden" | "passive" | "active",
-                    )
-                  }
-                >
-                  <option value="passive">Passive</option>
-                  <option value="active">Active</option>
-                  <option value="hidden">Hidden</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
-                Snooze (hours)
-                <Input
-                  type="number"
-                  min="0"
-                  value={channelSnoozeHours}
-                  onChange={(event) =>
-                    setChannelSnoozeHours(event.target.value)
-                  }
-                  className="h-8"
-                />
-              </label>
-              <Button type="submit" size="sm" disabled={!selectedChannelId}>
-                Save
-              </Button>
-            </form>
+            <div className="channel-settings-content">
+              <form
+                autoComplete="off"
+                className="grid grid-cols-[1fr_1fr_auto] gap-3 px-3 py-2.5 bg-muted/50 items-end"
+                onSubmit={onSaveChannelPreference}
+              >
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
+                  Mode
+                  <select
+                    className="rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    value={channelMode}
+                    onChange={(event) =>
+                      setChannelMode(
+                        event.target.value as "hidden" | "passive" | "active",
+                      )
+                    }
+                  >
+                    <option value="passive">Passive</option>
+                    <option value="active">Active</option>
+                    <option value="hidden">Hidden</option>
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
+                  Snooze (hours)
+                  <Input
+                    type="number"
+                    min="0"
+                    value={channelSnoozeHours}
+                    onChange={(event) =>
+                      setChannelSnoozeHours(event.target.value)
+                    }
+                    className="h-8"
+                  />
+                </label>
+                <Button type="submit" size="sm" disabled={!selectedChannelId}>
+                  Save
+                </Button>
+              </form>
+            </div>
           </div>
         )}
 
