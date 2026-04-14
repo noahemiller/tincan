@@ -2755,127 +2755,163 @@ export function App() {
                     />
                     Enable channel color theme
                   </label>
-                  <div className="grid grid-cols-2 gap-3 max-w-[520px]">
-                    <label className="flex items-center justify-between gap-2 text-xs">
-                      Background 1
-                      <input
-                        type="color"
-                        value={selectedChannelModuleConfig.ui.colorTheme.backgroundBase}
-                        onChange={(event) =>
-                          updateSelectedChannelModuleConfig((prev) => ({
-                            ...prev,
-                            ui: {
-                              ...prev.ui,
-                              colorTheme: {
-                                ...prev.ui.colorTheme,
-                                backgroundBase: event.target.value.toUpperCase(),
+                  <div className="grid grid-cols-2 gap-3 max-w-[560px]">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <label htmlFor="channel-color-background-1">Background 1</label>
+                      <div className="flex items-center gap-2">
+                        <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
+                          {selectedChannelModuleConfig.ui.colorTheme.backgroundBase}
+                        </code>
+                        <input
+                          id="channel-color-background-1"
+                          type="color"
+                          value={selectedChannelModuleConfig.ui.colorTheme.backgroundBase}
+                          onChange={(event) =>
+                            updateSelectedChannelModuleConfig((prev) => ({
+                              ...prev,
+                              ui: {
+                                ...prev.ui,
+                                colorTheme: {
+                                  ...prev.ui.colorTheme,
+                                  backgroundBase: event.target.value.toUpperCase(),
+                                },
                               },
-                            },
-                          }))
-                        }
-                        className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between gap-2 text-xs">
-                      Background 2
-                      <input
-                        type="color"
-                        value={selectedChannelModuleConfig.ui.colorTheme.backgroundAlt}
-                        onChange={(event) =>
-                          updateSelectedChannelModuleConfig((prev) => ({
-                            ...prev,
-                            ui: {
-                              ...prev.ui,
-                              colorTheme: {
-                                ...prev.ui.colorTheme,
-                                backgroundAlt: event.target.value.toUpperCase(),
+                            }))
+                          }
+                          className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <label htmlFor="channel-color-background-2">Background 2</label>
+                      <div className="flex items-center gap-2">
+                        <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
+                          {selectedChannelModuleConfig.ui.colorTheme.backgroundAlt}
+                        </code>
+                        <input
+                          id="channel-color-background-2"
+                          type="color"
+                          value={selectedChannelModuleConfig.ui.colorTheme.backgroundAlt}
+                          onChange={(event) =>
+                            updateSelectedChannelModuleConfig((prev) => ({
+                              ...prev,
+                              ui: {
+                                ...prev.ui,
+                                colorTheme: {
+                                  ...prev.ui.colorTheme,
+                                  backgroundAlt: event.target.value.toUpperCase(),
+                                },
                               },
-                            },
-                          }))
-                        }
-                        className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between gap-2 text-xs">
-                      Main color
-                      <input
-                        type="color"
-                        value={selectedChannelModuleConfig.ui.colorTheme.main}
-                        onChange={(event) =>
-                          updateSelectedChannelModuleConfig((prev) => ({
-                            ...prev,
-                            ui: {
-                              ...prev.ui,
-                              colorTheme: {
-                                ...prev.ui.colorTheme,
-                                main: event.target.value.toUpperCase(),
+                            }))
+                          }
+                          className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <label htmlFor="channel-color-main">Main color</label>
+                      <div className="flex items-center gap-2">
+                        <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
+                          {selectedChannelModuleConfig.ui.colorTheme.main}
+                        </code>
+                        <input
+                          id="channel-color-main"
+                          type="color"
+                          value={selectedChannelModuleConfig.ui.colorTheme.main}
+                          onChange={(event) =>
+                            updateSelectedChannelModuleConfig((prev) => ({
+                              ...prev,
+                              ui: {
+                                ...prev.ui,
+                                colorTheme: {
+                                  ...prev.ui.colorTheme,
+                                  main: event.target.value.toUpperCase(),
+                                },
                               },
-                            },
-                          }))
-                        }
-                        className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between gap-2 text-xs">
-                      Highlight
-                      <input
-                        type="color"
-                        value={selectedChannelModuleConfig.ui.colorTheme.highlight}
-                        onChange={(event) =>
-                          updateSelectedChannelModuleConfig((prev) => ({
-                            ...prev,
-                            ui: {
-                              ...prev.ui,
-                              colorTheme: {
-                                ...prev.ui.colorTheme,
-                                highlight: event.target.value.toUpperCase(),
+                            }))
+                          }
+                          className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <label htmlFor="channel-color-highlight">Highlight</label>
+                      <div className="flex items-center gap-2">
+                        <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
+                          {selectedChannelModuleConfig.ui.colorTheme.highlight}
+                        </code>
+                        <input
+                          id="channel-color-highlight"
+                          type="color"
+                          value={selectedChannelModuleConfig.ui.colorTheme.highlight}
+                          onChange={(event) =>
+                            updateSelectedChannelModuleConfig((prev) => ({
+                              ...prev,
+                              ui: {
+                                ...prev.ui,
+                                colorTheme: {
+                                  ...prev.ui.colorTheme,
+                                  highlight: event.target.value.toUpperCase(),
+                                },
                               },
-                            },
-                          }))
-                        }
-                        className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between gap-2 text-xs">
-                      Text
-                      <input
-                        type="color"
-                        value={selectedChannelModuleConfig.ui.colorTheme.text}
-                        onChange={(event) =>
-                          updateSelectedChannelModuleConfig((prev) => ({
-                            ...prev,
-                            ui: {
-                              ...prev.ui,
-                              colorTheme: {
-                                ...prev.ui.colorTheme,
-                                text: event.target.value.toUpperCase(),
+                            }))
+                          }
+                          className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <label htmlFor="channel-color-text">Text</label>
+                      <div className="flex items-center gap-2">
+                        <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
+                          {selectedChannelModuleConfig.ui.colorTheme.text}
+                        </code>
+                        <input
+                          id="channel-color-text"
+                          type="color"
+                          value={selectedChannelModuleConfig.ui.colorTheme.text}
+                          onChange={(event) =>
+                            updateSelectedChannelModuleConfig((prev) => ({
+                              ...prev,
+                              ui: {
+                                ...prev.ui,
+                                colorTheme: {
+                                  ...prev.ui.colorTheme,
+                                  text: event.target.value.toUpperCase(),
+                                },
                               },
-                            },
-                          }))
-                        }
-                        className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between gap-2 text-xs">
-                      Border
-                      <input
-                        type="color"
-                        value={selectedChannelModuleConfig.ui.colorTheme.border}
-                        onChange={(event) =>
-                          updateSelectedChannelModuleConfig((prev) => ({
-                            ...prev,
-                            ui: {
-                              ...prev.ui,
-                              colorTheme: {
-                                ...prev.ui.colorTheme,
-                                border: event.target.value.toUpperCase(),
+                            }))
+                          }
+                          className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <label htmlFor="channel-color-border">Border</label>
+                      <div className="flex items-center gap-2">
+                        <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
+                          {selectedChannelModuleConfig.ui.colorTheme.border}
+                        </code>
+                        <input
+                          id="channel-color-border"
+                          type="color"
+                          value={selectedChannelModuleConfig.ui.colorTheme.border}
+                          onChange={(event) =>
+                            updateSelectedChannelModuleConfig((prev) => ({
+                              ...prev,
+                              ui: {
+                                ...prev.ui,
+                                colorTheme: {
+                                  ...prev.ui.colorTheme,
+                                  border: event.target.value.toUpperCase(),
+                                },
                               },
-                            },
-                          }))
-                        }
-                        className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
-                      />
-                    </label>
+                            }))
+                          }
+                          className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <Button
