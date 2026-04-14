@@ -9,6 +9,7 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "format": "pnpm -r format",
-    "test:permissions": "pnpm --filter @tincan/api test:permissions"
+    "test:permissions": "pnpm --filter @tincan/api test:permissions",
+    "discord:size": "node scripts/discord-size-report.mjs"
   }
 }
