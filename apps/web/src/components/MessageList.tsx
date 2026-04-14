@@ -37,6 +37,13 @@ type MessageListProps = {
   onOpenThread: (rootMessageId: string) => void;
   onOpenLightbox: (attachmentId: string) => void;
   onBottomStateChange?: (atBottom: boolean) => void;
+  showAvatars?: boolean;
+  density?: "compact" | "comfortable";
+  cornerRadiusPx?: number;
+  borderWidthPx?: number;
+  enableLinkPreviews?: boolean;
+  enableMusicEmbeds?: boolean;
+  enableThreads?: boolean;
 };
 
 export function MessageList({
@@ -45,6 +52,13 @@ export function MessageList({
   onOpenThread,
   onOpenLightbox,
   onBottomStateChange,
+  showAvatars = true,
+  density = "comfortable",
+  cornerRadiusPx = 10,
+  borderWidthPx = 1,
+  enableLinkPreviews = true,
+  enableMusicEmbeds = true,
+  enableThreads = true,
 }: MessageListProps) {
   const { resolvedTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -85,19 +99,33 @@ export function MessageList({
       {messages.map((message) => (
         <article
           key={message.id}
-          className="group rounded-lg border-b border-border px-3 py-2.5 hover:bg-accent/40 transition-colors"
+          className={cn(
+            "group rounded-lg border-b border-border px-3 hover:bg-accent/40 transition-colors",
+            density === "compact" ? "py-1.5" : "py-2.5",
+          )}
+          style={{
+            borderRadius: `${cornerRadiusPx}px`,
+            borderBottomWidth: `${borderWidthPx}px`,
+          }}
         >
           {/* Header */}
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <Avatar className="h-7 w-7 shrink-0">
-              <AvatarImage
-                src={message.author_avatar_url ?? undefined}
-                alt={`${message.author_name} avatar`}
-              />
-              <AvatarFallback className="text-[10px] font-semibold">
-                {initialsFromName(message.author_name)}
-              </AvatarFallback>
-            </Avatar>
+          <div
+            className={cn(
+              "flex items-center mb-1.5",
+              showAvatars ? "gap-2.5" : "gap-0",
+            )}
+          >
+            {showAvatars && (
+              <Avatar className="h-7 w-7 shrink-0">
+                <AvatarImage
+                  src={message.author_avatar_url ?? undefined}
+                  alt={`${message.author_name} avatar`}
+                />
+                <AvatarFallback className="text-[10px] font-semibold">
+                  {initialsFromName(message.author_name)}
+                </AvatarFallback>
+              </Avatar>
+            )}
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
               <strong className="text-sm font-semibold">
                 {message.author_name}
@@ -112,13 +140,23 @@ export function MessageList({
           </div>
 
           {/* Body */}
-          <p className="text-sm leading-relaxed whitespace-pre-wrap mt-0 mb-0 pl-[2.375rem]">
+          <p
+            className={cn(
+              "text-sm leading-relaxed whitespace-pre-wrap mt-0 mb-0",
+              showAvatars ? "pl-[2.375rem]" : "pl-0",
+            )}
+          >
             {message.body}
           </p>
 
           {/* Link previews */}
-          {extractUrls(message.body).length > 0 && (
-            <div className="mt-2 pl-[2.375rem] flex flex-col gap-2">
+          {enableLinkPreviews && extractUrls(message.body).length > 0 && (
+            <div
+              className={cn(
+                "mt-2 flex flex-col gap-2",
+                showAvatars ? "pl-[2.375rem]" : "pl-0",
+              )}
+            >
               {extractUrls(message.body).map((url) => {
                 const preview = linkPreviews[url];
                 const musicPreview = getMusicPreview(
@@ -128,11 +166,15 @@ export function MessageList({
                 );
                 const youtubeEmbedUrl = getYouTubeEmbedUrl(url);
 
-                if (musicPreview) {
+                if (musicPreview && enableMusicEmbeds) {
                   return (
                     <article
                       key={`${message.id}-${url}`}
                       className="w-full max-w-[980px] rounded-lg border border-border p-2.5 flex flex-col gap-2"
+                      style={{
+                        borderRadius: `${cornerRadiusPx}px`,
+                        borderWidth: `${borderWidthPx}px`,
+                      }}
                     >
                       <iframe
                         src={musicPreview.embedUrl}
@@ -181,6 +223,10 @@ export function MessageList({
                     <article
                       key={`${message.id}-${url}`}
                       className="w-full max-w-[980px] rounded-lg border border-border bg-muted p-2.5 flex flex-col gap-2"
+                      style={{
+                        borderRadius: `${cornerRadiusPx}px`,
+                        borderWidth: `${borderWidthPx}px`,
+                      }}
                     >
                       <iframe
                         src={youtubeEmbedUrl}
@@ -224,6 +270,10 @@ export function MessageList({
                         ? "flex gap-3 items-start"
                         : "flex flex-col gap-1",
                     )}
+                    style={{
+                      borderRadius: `${cornerRadiusPx}px`,
+                      borderWidth: `${borderWidthPx}px`,
+                    }}
                   >
                     {preview?.image_url && (
                       <img
@@ -253,7 +303,12 @@ export function MessageList({
 
           {/* Attachments */}
           {message.attachments.length > 0 && (
-            <div className="mt-2 pl-[2.375rem] flex flex-wrap gap-2">
+            <div
+              className={cn(
+                "mt-2 flex flex-wrap gap-2",
+                showAvatars ? "pl-[2.375rem]" : "pl-0",
+              )}
+            >
               {message.attachments.map((attachment) =>
                 attachment.mime_type.startsWith("image/") ? (
                   <button
@@ -286,7 +341,12 @@ export function MessageList({
 
           {/* Reactions */}
           {message.reactions.length > 0 && (
-            <div className="mt-2 pl-[2.375rem] flex flex-wrap gap-1.5">
+            <div
+              className={cn(
+                "mt-2 flex flex-wrap gap-1.5",
+                showAvatars ? "pl-[2.375rem]" : "pl-0",
+              )}
+            >
               {message.reactions.map((reaction) => (
                 <span
                   key={`${message.id}-${reaction.emoji}`}
@@ -299,18 +359,25 @@ export function MessageList({
           )}
 
           {/* Thread action */}
-          <div className="mt-2 pl-[2.375rem] opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs text-muted-foreground"
-              onClick={() => void onOpenThread(message.id)}
+          {enableThreads && (
+            <div
+              className={cn(
+                "mt-2 opacity-0 group-hover:opacity-100 transition-opacity",
+                showAvatars ? "pl-[2.375rem]" : "pl-0",
+              )}
             >
-              {message.thread_reply_count
-                ? `${message.thread_reply_count} ${message.thread_reply_count === 1 ? "reply" : "replies"}`
-                : "Reply in thread"}
-            </Button>
-          </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-muted-foreground"
+                onClick={() => void onOpenThread(message.id)}
+              >
+                {message.thread_reply_count
+                  ? `${message.thread_reply_count} ${message.thread_reply_count === 1 ? "reply" : "replies"}`
+                  : "Reply in thread"}
+              </Button>
+            </div>
+          )}
         </article>
       ))}
     </div>

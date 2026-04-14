@@ -113,12 +113,35 @@ type LibraryItem = {
 const TOKEN_KEY = "tincan_token";
 const REFRESH_TOKEN_KEY = "tincan_refresh_token";
 const UI_PREFS_KEY = "tincan_ui_prefs_v1";
+const CHANNEL_MODULE_CONFIG_KEY = "tincan_channel_module_config_v1";
 
 type UiPrefs = {
   textSize: "compact" | "comfortable" | "large";
   contrast: "default" | "high" | "soft" | "rg-safe";
   onboarded: boolean;
 };
+
+type ChannelModuleConfig = {
+  modules: {
+    dice: boolean;
+    surveys: boolean;
+    musicEmbeds: boolean;
+    linkPreviews: boolean;
+    threads: boolean;
+  };
+  ui: {
+    messageDensity: "compact" | "comfortable";
+    showAvatars: boolean;
+    cornerRadiusPx: number;
+    borderWidthPx: number;
+  };
+  notifications: {
+    autoMarkReadAtBottom: boolean;
+    showUnreadBadge: boolean;
+  };
+};
+
+type ChannelModuleConfigMap = Record<string, ChannelModuleConfig>;
 
 function loadUiPrefs(): UiPrefs {
   const fallback: UiPrefs = {
@@ -150,6 +173,90 @@ function loadUiPrefs(): UiPrefs {
     };
   } catch {
     return fallback;
+  }
+}
+
+function defaultChannelModuleConfig(): ChannelModuleConfig {
+  return {
+    modules: {
+      dice: true,
+      surveys: true,
+      musicEmbeds: true,
+      linkPreviews: true,
+      threads: true,
+    },
+    ui: {
+      messageDensity: "comfortable",
+      showAvatars: true,
+      cornerRadiusPx: 10,
+      borderWidthPx: 1,
+    },
+    notifications: {
+      autoMarkReadAtBottom: true,
+      showUnreadBadge: true,
+    },
+  };
+}
+
+function sanitizeChannelModuleConfig(
+  value: unknown,
+): ChannelModuleConfig | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const input = value as Partial<ChannelModuleConfig>;
+  const modules = input.modules ?? {};
+  const ui = input.ui ?? {};
+  const notifications = input.notifications ?? {};
+  return {
+    modules: {
+      dice: modules.dice !== false,
+      surveys: modules.surveys !== false,
+      musicEmbeds: modules.musicEmbeds !== false,
+      linkPreviews: modules.linkPreviews !== false,
+      threads: modules.threads !== false,
+    },
+    ui: {
+      messageDensity: ui.messageDensity === "compact" ? "compact" : "comfortable",
+      showAvatars: ui.showAvatars !== false,
+      cornerRadiusPx:
+        typeof ui.cornerRadiusPx === "number" &&
+        Number.isFinite(ui.cornerRadiusPx)
+          ? Math.min(20, Math.max(0, Math.round(ui.cornerRadiusPx)))
+          : 10,
+      borderWidthPx:
+        typeof ui.borderWidthPx === "number" &&
+        Number.isFinite(ui.borderWidthPx)
+          ? Math.min(4, Math.max(0, Math.round(ui.borderWidthPx)))
+          : 1,
+    },
+    notifications: {
+      autoMarkReadAtBottom: notifications.autoMarkReadAtBottom !== false,
+      showUnreadBadge: notifications.showUnreadBadge !== false,
+    },
+  };
+}
+
+function loadChannelModuleConfigMap(): ChannelModuleConfigMap {
+  try {
+    const raw = localStorage.getItem(CHANNEL_MODULE_CONFIG_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object") {
+      return {};
+    }
+    const next: ChannelModuleConfigMap = {};
+    for (const [channelId, config] of Object.entries(parsed)) {
+      const safeConfig = sanitizeChannelModuleConfig(config);
+      if (safeConfig) {
+        next[channelId] = safeConfig;
+      }
+    }
+    return next;
+  } catch {
+    return {};
   }
 }
 
@@ -353,6 +460,8 @@ export function App() {
     responseText: "",
   });
   const [uiPrefs, setUiPrefs] = useState<UiPrefs>(() => loadUiPrefs());
+  const [channelModuleConfigs, setChannelModuleConfigs] =
+    useState<ChannelModuleConfigMap>(() => loadChannelModuleConfigMap());
   const [profileForm, setProfileForm] = useState({
     name: "",
     handle: "",
@@ -368,6 +477,7 @@ export function App() {
     confirmNewPassword: "",
   });
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const channelConfigUploadRef = useRef<HTMLInputElement | null>(null);
   const markReadInFlightRef = useRef<string | null>(null);
   const lastMarkedReadByChannelRef = useRef<Record<string, string>>({});
 
@@ -380,6 +490,14 @@ export function App() {
     () => channels.find((channel) => channel.id === selectedChannelId) ?? null,
     [channels, selectedChannelId],
   );
+  const selectedChannelModuleConfig = useMemo(() => {
+    if (!selectedChannelId) {
+      return defaultChannelModuleConfig();
+    }
+    return (
+      channelModuleConfigs[selectedChannelId] ?? defaultChannelModuleConfig()
+    );
+  }, [channelModuleConfigs, selectedChannelId]);
   const selectedCollection = useMemo(
     () =>
       collections.find(
@@ -395,6 +513,19 @@ export function App() {
     }
     return map;
   }, [unread]);
+
+  const unreadBadgeCountByChannel = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const [channelId, unreadCount] of unreadCountByChannel.entries()) {
+      const config =
+        channelModuleConfigs[channelId] ?? defaultChannelModuleConfig();
+      map.set(
+        channelId,
+        config.notifications.showUnreadBadge ? unreadCount : 0,
+      );
+    }
+    return map;
+  }, [unreadCountByChannel, channelModuleConfigs]);
 
   const visibleChannels = useMemo(
     () =>
@@ -736,6 +867,28 @@ export function App() {
   useEffect(() => {
     localStorage.setItem(UI_PREFS_KEY, JSON.stringify(uiPrefs));
   }, [uiPrefs]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      CHANNEL_MODULE_CONFIG_KEY,
+      JSON.stringify(channelModuleConfigs),
+    );
+  }, [channelModuleConfigs]);
+
+  useEffect(() => {
+    if (!selectedChannelId) {
+      return;
+    }
+    setChannelModuleConfigs((prev) => {
+      if (prev[selectedChannelId]) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [selectedChannelId]: defaultChannelModuleConfig(),
+      };
+    });
+  }, [selectedChannelId]);
 
   useEffect(() => {
     if (!user) {
@@ -1684,7 +1837,13 @@ export function App() {
   }
 
   async function onMessageListBottomStateChange(atBottom: boolean) {
-    if (!atBottom || !token || !selectedChannelId || messages.length === 0) {
+    if (
+      !atBottom ||
+      !token ||
+      !selectedChannelId ||
+      messages.length === 0 ||
+      !selectedChannelModuleConfig.notifications.autoMarkReadAtBottom
+    ) {
       return;
     }
 
@@ -1855,6 +2014,72 @@ export function App() {
     setAccountMenuOpen(false);
   }
 
+  function updateSelectedChannelModuleConfig(
+    updater: (prev: ChannelModuleConfig) => ChannelModuleConfig,
+  ) {
+    if (!selectedChannelId) {
+      return;
+    }
+    setChannelModuleConfigs((prev) => {
+      const current = prev[selectedChannelId] ?? defaultChannelModuleConfig();
+      return {
+        ...prev,
+        [selectedChannelId]: updater(current),
+      };
+    });
+  }
+
+  function onDownloadChannelModuleConfig() {
+    if (!selectedChannelId || !selectedChannel) {
+      return;
+    }
+    const payload = {
+      format: "tincan-channel-module-config-v1",
+      exportedAt: new Date().toISOString(),
+      channelId: selectedChannelId,
+      channelName: selectedChannel.name,
+      config: selectedChannelModuleConfig,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const safeName = selectedChannel.name.replace(/[^a-z0-9-_]+/gi, "-");
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `tincan-channel-config-${safeName || selectedChannelId}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function onUploadChannelModuleConfigFile(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !selectedChannelId) {
+      return;
+    }
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as { config?: unknown };
+      const safeConfig = sanitizeChannelModuleConfig(parsed.config ?? parsed);
+      if (!safeConfig) {
+        setError("Invalid channel module config file.");
+        return;
+      }
+      setChannelModuleConfigs((prev) => ({
+        ...prev,
+        [selectedChannelId]: safeConfig,
+      }));
+      setError("");
+    } catch {
+      setError("Could not read channel module config file.");
+    }
+  }
+
   async function onSaveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token) {
@@ -1983,6 +2208,7 @@ export function App() {
         selectedChannelId={selectedChannelId}
         onSelectChannel={(id) => void onSelectChannel(id)}
         unreadCountByChannel={unreadCountByChannel}
+        unreadBadgeCountByChannel={unreadBadgeCountByChannel}
         showUnreadOnly={showUnreadOnly}
         setShowUnreadOnly={setShowUnreadOnly}
         visibleChannels={visibleChannels}
@@ -2149,6 +2375,252 @@ export function App() {
                   Save
                 </Button>
               </form>
+              <section className="px-3 py-3 border-t border-border/70 bg-muted/40 flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-semibold m-0">
+                      Channel Module Config
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground m-0.5">
+                      Per-channel module behavior with JSON import/export.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={onDownloadChannelModuleConfig}
+                      disabled={!selectedChannelId}
+                    >
+                      Download
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => channelConfigUploadRef.current?.click()}
+                      disabled={!selectedChannelId}
+                    >
+                      Upload
+                    </Button>
+                    <input
+                      ref={channelConfigUploadRef}
+                      type="file"
+                      accept="application/json,.json"
+                      className="hidden"
+                      onChange={(event) => {
+                        void onUploadChannelModuleConfigFile(event);
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedChannelModuleConfig.modules.dice}
+                      onChange={(event) =>
+                        updateSelectedChannelModuleConfig((prev) => ({
+                          ...prev,
+                          modules: {
+                            ...prev.modules,
+                            dice: event.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                    Dice module
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedChannelModuleConfig.modules.surveys}
+                      onChange={(event) =>
+                        updateSelectedChannelModuleConfig((prev) => ({
+                          ...prev,
+                          modules: {
+                            ...prev.modules,
+                            surveys: event.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                    Survey module
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedChannelModuleConfig.modules.musicEmbeds}
+                      onChange={(event) =>
+                        updateSelectedChannelModuleConfig((prev) => ({
+                          ...prev,
+                          modules: {
+                            ...prev.modules,
+                            musicEmbeds: event.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                    Music embeds
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedChannelModuleConfig.modules.linkPreviews}
+                      onChange={(event) =>
+                        updateSelectedChannelModuleConfig((prev) => ({
+                          ...prev,
+                          modules: {
+                            ...prev.modules,
+                            linkPreviews: event.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                    Link previews
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedChannelModuleConfig.modules.threads}
+                      onChange={(event) =>
+                        updateSelectedChannelModuleConfig((prev) => ({
+                          ...prev,
+                          modules: {
+                            ...prev.modules,
+                            threads: event.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                    Thread replies
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedChannelModuleConfig.notifications
+                          .autoMarkReadAtBottom
+                      }
+                      onChange={(event) =>
+                        updateSelectedChannelModuleConfig((prev) => ({
+                          ...prev,
+                          notifications: {
+                            ...prev.notifications,
+                            autoMarkReadAtBottom: event.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                    Auto-mark read at bottom
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedChannelModuleConfig.ui.showAvatars}
+                      onChange={(event) =>
+                        updateSelectedChannelModuleConfig((prev) => ({
+                          ...prev,
+                          ui: {
+                            ...prev.ui,
+                            showAvatars: event.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                    Show avatars
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedChannelModuleConfig.notifications.showUnreadBadge
+                      }
+                      onChange={(event) =>
+                        updateSelectedChannelModuleConfig((prev) => ({
+                          ...prev,
+                          notifications: {
+                            ...prev.notifications,
+                            showUnreadBadge: event.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                    Show unread badge
+                  </label>
+                </div>
+                <label className="flex items-center gap-2 text-xs max-w-[280px]">
+                  Message density
+                  <select
+                    className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+                    value={selectedChannelModuleConfig.ui.messageDensity}
+                    onChange={(event) =>
+                      updateSelectedChannelModuleConfig((prev) => ({
+                        ...prev,
+                        ui: {
+                          ...prev.ui,
+                          messageDensity:
+                            event.target.value === "compact"
+                              ? "compact"
+                              : "comfortable",
+                        },
+                      }))
+                    }
+                  >
+                    <option value="comfortable">Comfortable</option>
+                    <option value="compact">Compact</option>
+                  </select>
+                </label>
+                <div className="grid grid-cols-2 gap-3 max-w-[420px]">
+                  <label className="flex items-center gap-2 text-xs">
+                    Corner radius
+                    <Input
+                      type="number"
+                      min="0"
+                      max="20"
+                      value={selectedChannelModuleConfig.ui.cornerRadiusPx}
+                      onChange={(event) =>
+                        updateSelectedChannelModuleConfig((prev) => ({
+                          ...prev,
+                          ui: {
+                            ...prev.ui,
+                            cornerRadiusPx: Math.min(
+                              20,
+                              Math.max(0, Number(event.target.value || "0")),
+                            ),
+                          },
+                        }))
+                      }
+                      className="h-7 w-20"
+                    />
+                  </label>
+                  <label className="flex items-center gap-2 text-xs">
+                    Border thickness
+                    <Input
+                      type="number"
+                      min="0"
+                      max="4"
+                      value={selectedChannelModuleConfig.ui.borderWidthPx}
+                      onChange={(event) =>
+                        updateSelectedChannelModuleConfig((prev) => ({
+                          ...prev,
+                          ui: {
+                            ...prev.ui,
+                            borderWidthPx: Math.min(
+                              4,
+                              Math.max(0, Number(event.target.value || "0")),
+                            ),
+                          },
+                        }))
+                      }
+                      className="h-7 w-20"
+                    />
+                  </label>
+                </div>
+              </section>
             </div>
           </div>
         )}
@@ -2162,6 +2634,13 @@ export function App() {
             linkPreviews={linkPreviews}
             onOpenThread={(id) => void onOpenThread(id)}
             onOpenLightbox={onOpenLightbox}
+            showAvatars={selectedChannelModuleConfig.ui.showAvatars}
+            density={selectedChannelModuleConfig.ui.messageDensity}
+            cornerRadiusPx={selectedChannelModuleConfig.ui.cornerRadiusPx}
+            borderWidthPx={selectedChannelModuleConfig.ui.borderWidthPx}
+            enableLinkPreviews={selectedChannelModuleConfig.modules.linkPreviews}
+            enableMusicEmbeds={selectedChannelModuleConfig.modules.musicEmbeds}
+            enableThreads={selectedChannelModuleConfig.modules.threads}
             onBottomStateChange={(atBottom) => {
               void onMessageListBottomStateChange(atBottom);
             }}

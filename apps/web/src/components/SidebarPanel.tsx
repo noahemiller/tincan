@@ -35,6 +35,7 @@ type SidebarPanelProps = {
   selectedChannelId: string;
   onSelectChannel: (id: string) => void;
   unreadCountByChannel: Map<string, number>;
+  unreadBadgeCountByChannel?: Map<string, number>;
   showUnreadOnly: boolean;
   setShowUnreadOnly: (v: boolean) => void;
   visibleChannels: Channel[];
@@ -80,6 +81,7 @@ export function SidebarPanel({
   selectedChannelId,
   onSelectChannel,
   unreadCountByChannel,
+  unreadBadgeCountByChannel,
   showUnreadOnly,
   setShowUnreadOnly,
   visibleChannels,
@@ -217,6 +219,8 @@ export function SidebarPanel({
             )}
             {visibleChannels.map((channel) => {
               const unreadCount = unreadCountByChannel.get(channel.id) ?? 0;
+              const unreadBadgeCount =
+                unreadBadgeCountByChannel?.get(channel.id) ?? unreadCount;
               const active = channel.id === selectedChannelId;
               return (
                 <button
@@ -230,9 +234,9 @@ export function SidebarPanel({
                   onClick={() => void onSelectChannel(channel.id)}
                 >
                   <span className="truncate">#{channel.name}</span>
-                  {unreadCount > 0 && (
+                  {unreadBadgeCount > 0 && (
                     <Badge variant="secondary" className="text-[10px] min-w-[1.25rem] text-center px-1 py-0 rounded-full">
-                      {unreadCount}
+                      {unreadBadgeCount}
                     </Badge>
                   )}
                 </button>
