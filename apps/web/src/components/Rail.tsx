@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/ThemeProvider";
-import { Paintbrush, Sun, Moon } from "lucide-react";
+import { Sun, Moon, RadioTower, Phone, Library, Settings2 } from "lucide-react";
 
-export type RailTab = "servers" | "dms" | "channels" | "design";
+export type RailTab = "channels" | "dms" | "library" | "settings";
 
 type RailProps = {
   activeTab: RailTab;
@@ -12,13 +12,12 @@ type RailProps = {
 const TABS: {
   id: RailTab;
   label: string;
-  icon?: string;
-  Icon?: React.ComponentType<{ className?: string }>;
+  Icon: React.ComponentType<{ className?: string }>;
 }[] = [
-  { id: "channels", label: "Channels", icon: "/icon-channels.svg" },
-  { id: "dms", label: "Direct messages", icon: "/icon-dms.svg" },
-  { id: "servers", label: "Servers", icon: "/icon-servers.svg" },
-  { id: "design", label: "Design system", Icon: Paintbrush },
+  { id: "channels", label: "Channels", Icon: RadioTower },
+  { id: "dms", label: "Direct messages", Icon: Phone },
+  { id: "library", label: "Library", Icon: Library },
+  { id: "settings", label: "Settings", Icon: Settings2 },
 ];
 
 export function Rail({ activeTab, onTabChange }: RailProps) {
@@ -38,7 +37,7 @@ export function Rail({ activeTab, onTabChange }: RailProps) {
 
       {/* Nav tabs */}
       <nav className="flex flex-col gap-1 w-full flex-1">
-        {TABS.map(({ id, label, icon, Icon }) => (
+        {TABS.map(({ id, label, Icon }) => (
           <button
             key={id}
             type="button"
@@ -52,11 +51,7 @@ export function Rail({ activeTab, onTabChange }: RailProps) {
                 : "text-muted-foreground",
             )}
           >
-            {icon ? (
-              <img src={icon} alt="" className="w-[68%] h-[68%] object-contain" />
-            ) : Icon ? (
-              <Icon className="w-4 h-4" />
-            ) : null}
+            <Icon className="w-4 h-4" />
           </button>
         ))}
       </nav>

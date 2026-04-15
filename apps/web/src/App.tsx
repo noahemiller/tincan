@@ -8,10 +8,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { AccountMenu } from "./components/AccountMenu";
-import { AccountWorkspace } from "./components/AccountWorkspace";
 import { AuthShell } from "./components/AuthShell";
-import { LibraryWorkspace } from "./components/LibraryWorkspace";
+import { SettingsLayout, type SettingsView } from "./components/SettingsLayout";
+import { LibraryLayout } from "./components/LibraryLayout";
 import { MessageList } from "./components/MessageList";
 import { Rail, type RailTab } from "./components/Rail";
 import { SidebarPanel } from "./components/SidebarPanel";
@@ -19,7 +18,6 @@ import { ThreadPanel } from "./components/ThreadPanel";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { extractUrls } from "./lib/chat";
-import { DesignSystemPage } from "./components/DesignSystemPage";
 import { Settings2 } from "lucide-react";
 
 import { api } from "./api";
@@ -236,9 +234,9 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   }
   const value = match[1];
   return {
-    r: Number.parseInt(value.slice(0, 2), 16),
-    g: Number.parseInt(value.slice(2, 4), 16),
-    b: Number.parseInt(value.slice(4, 6), 16),
+    r: Number.parseInt((value ?? "000000").slice(0, 2), 16),
+    g: Number.parseInt((value ?? "000000").slice(2, 4), 16),
+    b: Number.parseInt((value ?? "000000").slice(4, 6), 16),
   };
 }
 
@@ -258,10 +256,12 @@ function sanitizeChannelModuleConfig(
     return null;
   }
   const input = value as Partial<ChannelModuleConfig>;
-  const modules = input.modules ?? {};
-  const ui = input.ui ?? {};
-  const colorThemeInput = ui.colorTheme ?? {};
-  const notifications = input.notifications ?? {};
+  const modules: Partial<ChannelModuleConfig["modules"]> = input.modules ?? {};
+  const ui: Partial<ChannelModuleConfig["ui"]> = input.ui ?? {};
+  const colorThemeInput: Partial<ChannelModuleConfig["ui"]["colorTheme"]> =
+    ui.colorTheme ?? {};
+  const notifications: Partial<ChannelModuleConfig["notifications"]> =
+    input.notifications ?? {};
   return {
     modules: {
       dice: modules.dice !== false,
@@ -443,13 +443,8 @@ export function App() {
   >("passive");
   const [channelSnoozeHours, setChannelSnoozeHours] = useState("0");
   const [channelSettingsOpen, setChannelSettingsOpen] = useState(false);
-  const [centerPane, setCenterPane] = useState<
-    "chat" | "library" | "account" | "design"
-  >("chat");
-  const [accountView, setAccountView] = useState<
-    "profile" | "settings" | "accessibility"
-  >("profile");
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [centerPane, setCenterPane] = useState<"chat" | "library">("chat");
+  const [settingsView, setSettingsView] = useState<SettingsView>("profile");
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [leftRailTab, setLeftRailTab] = useState<RailTab>("channels");
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -562,7 +557,6 @@ export function App() {
     newPassword: "",
     confirmNewPassword: "",
   });
-  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const channelConfigUploadRef = useRef<HTMLInputElement | null>(null);
   const markReadInFlightRef = useRef<string | null>(null);
   const lastMarkedReadByChannelRef = useRef<Record<string, string>>({});
@@ -1020,30 +1014,12 @@ export function App() {
   }, [user]);
 
   useEffect(() => {
-    if (!accountMenuOpen) {
-      return;
-    }
-
-    const onPointerDown = (event: MouseEvent) => {
-      if (
-        !accountMenuRef.current ||
-        accountMenuRef.current.contains(event.target as Node)
-      ) {
-        return;
-      }
-      setAccountMenuOpen(false);
-    };
-
-    window.addEventListener("mousedown", onPointerDown);
-    return () => window.removeEventListener("mousedown", onPointerDown);
-  }, [accountMenuOpen]);
-
-  useEffect(() => {
     if (!user || uiPrefs.onboarded) {
       return;
     }
-    setCenterPane("account");
-    setAccountView("accessibility");
+    setLeftRailTab("settings");
+    setSettingsView("settings");
+    setChannelSettingsOpen(false);
   }, [user, uiPrefs.onboarded]);
 
   async function bootstrap(nextToken: string) {
@@ -2121,11 +2097,10 @@ export function App() {
     }
   }
 
-  function onOpenAccountView(view: "profile" | "settings" | "accessibility") {
-    setAccountView(view);
-    setCenterPane("account");
+  function onOpenSettingsView(view: SettingsView) {
+    setSettingsView(view);
+    setLeftRailTab("settings");
     setChannelSettingsOpen(false);
-    setAccountMenuOpen(false);
   }
 
   function updateSelectedChannelModuleConfig(
@@ -2259,11 +2234,9 @@ export function App() {
 
   function onRailTabChange(tab: RailTab) {
     setLeftRailTab(tab);
-    if (tab === "design") {
-      setCenterPane("design");
+    if (tab === "settings") {
+      setSettingsView((prev) => prev ?? "profile");
       setChannelSettingsOpen(false);
-    } else {
-      setCenterPane((prev) => (prev === "design" ? "chat" : prev));
     }
   }
 
@@ -2291,100 +2264,178 @@ export function App() {
     );
   }
 
+  const isFullscreenMode = leftRailTab === "settings" || leftRailTab === "library";
+
   return (
     <main
       className={`app-shell size-${uiPrefs.textSize} contrast-${uiPrefs.contrast}`}
-      style={selectedChannelThemeStyle}
+      style={
+        isFullscreenMode
+          ? ({ gridTemplateColumns: "56px 1fr" } as CSSProperties)
+          : selectedChannelThemeStyle
+      }
     >
       <Rail activeTab={leftRailTab} onTabChange={onRailTabChange} />
+      {leftRailTab === "library" ? (
+        <LibraryLayout
+          selectedServerName={selectedServer?.name}
+          selectedChannelName={selectedChannel?.name}
+          filteredLibraryItems={filteredLibraryItems}
+          selectedLibraryItemIds={selectedLibraryItemIds}
+          setSelectedLibraryItemIds={setSelectedLibraryItemIds}
+          dragOverLibraryItemId={dragOverLibraryItemId}
+          canReorderCollection={canReorderCollection}
+          onLibraryItemDragStart={onLibraryItemDragStart}
+          onLibraryItemDragOver={onLibraryItemDragOver}
+          onLibraryItemDragEnd={onLibraryItemDragEnd}
+          onLibraryItemDrop={onLibraryItemDrop}
+          onSelectAllFilteredLibraryItems={onSelectAllFilteredLibraryItems}
+          onClearLibrarySelection={onClearLibrarySelection}
+          getLibraryThumbnail={getLibraryThumbnail}
+          decodeHtmlEntities={decodeHtmlEntities}
+          editingLibraryItem={editingLibraryItem}
+          metadataTitleDraft={metadataTitleDraft}
+          setMetadataTitleDraft={setMetadataTitleDraft}
+          metadataDescriptionDraft={metadataDescriptionDraft}
+          setMetadataDescriptionDraft={setMetadataDescriptionDraft}
+          metadataTermsDraft={metadataTermsDraft}
+          setMetadataTermsDraft={setMetadataTermsDraft}
+          guessTaxonomySuggestions={guessTaxonomySuggestions}
+          onApplySuggestedTerm={onApplySuggestedTerm}
+          onSaveLibraryMetadata={onSaveLibraryMetadata}
+          onSetMetadataDraft={onSetMetadataDraft}
+          setEditingLibraryItem={setEditingLibraryItem}
+          busy={busy}
+          collections={collections}
+          collectionName={collectionName}
+          setCollectionName={setCollectionName}
+          collectionVisibility={collectionVisibility}
+          setCollectionVisibility={setCollectionVisibility}
+          onCreateCollection={onCreateCollection}
+          selectedCollectionId={selectedCollectionId}
+          setSelectedCollectionId={setSelectedCollectionId}
+          selectedCollection={selectedCollection}
+          onAddSelectedToCollection={onAddSelectedToCollection}
+          onAddFilteredToCollection={onAddFilteredToCollection}
+          onRemoveSelectedFromCollection={onRemoveSelectedFromCollection}
+          libraryScope={libraryScope}
+          setLibraryScope={setLibraryScope}
+          libraryQuery={libraryQuery}
+          setLibraryQuery={setLibraryQuery}
+          libraryPosterFilter={libraryPosterFilter}
+          setLibraryPosterFilter={setLibraryPosterFilter}
+          libraryTypeFilter={libraryTypeFilter}
+          setLibraryTypeFilter={setLibraryTypeFilter}
+          libraryTaxonomyFilter={libraryTaxonomyFilter}
+          setLibraryTaxonomyFilter={setLibraryTaxonomyFilter}
+          libraryDateFrom={libraryDateFrom}
+          setLibraryDateFrom={setLibraryDateFrom}
+          libraryDateTo={libraryDateTo}
+          setLibraryDateTo={setLibraryDateTo}
+          librarySort={librarySort}
+          setLibrarySort={setLibrarySort}
+          availablePosterFacets={availablePosterFacets}
+          availableTaxonomyFacets={availableTaxonomyFacets}
+          visibleTaxonomySuggestions={visibleTaxonomySuggestions}
+          taxonomyQuickInput={taxonomyQuickInput}
+          setTaxonomyQuickInput={setTaxonomyQuickInput}
+          onTaxonomySuggestionClick={onTaxonomySuggestionClick}
+          onApplyTaxonomyTerm={onApplyTaxonomyTerm}
+          onApplyTaxonomyTermToFiltered={onApplyTaxonomyTermToFiltered}
+          onUseTaxonomyTermAsFilter={onUseTaxonomyTermAsFilter}
+        />
+      ) : leftRailTab === "settings" ? (
+        <SettingsLayout
+          activeView={settingsView}
+          onViewChange={onOpenSettingsView}
+          user={{
+            id: user.id,
+            name: user.name,
+            handle: user.handle,
+            avatar_thumb_url: user.avatar_thumb_url,
+          }}
+          onLogout={() => {
+            void logout();
+          }}
+          profileForm={profileForm}
+          setProfileForm={setProfileForm}
+          onSaveProfile={onSaveProfile}
+          profilePhotos={profilePhotos}
+          servers={servers}
+          busy={busy}
+          showUnreadOnly={showUnreadOnly}
+          setShowUnreadOnly={setShowUnreadOnly}
+          changePasswordForm={changePasswordForm}
+          setChangePasswordForm={setChangePasswordForm}
+          onChangePassword={onChangePassword}
+          uiPrefs={uiPrefs}
+          setUiPrefs={setUiPrefs}
+          selectedServerId={selectedServerId}
+          onSelectServer={(id) => void onSelectServer(id)}
+          serverName={serverName}
+          setServerName={setServerName}
+          onCreateServer={onCreateServer}
+          joinInviteCode={joinInviteCode}
+          setJoinInviteCode={setJoinInviteCode}
+          onJoinInvite={onJoinInvite}
+          inviteRoleToGrant={inviteRoleToGrant}
+          setInviteRoleToGrant={setInviteRoleToGrant}
+          inviteMaxUses={inviteMaxUses}
+          setInviteMaxUses={setInviteMaxUses}
+          inviteExpiresHours={inviteExpiresHours}
+          setInviteExpiresHours={setInviteExpiresHours}
+          onCreateInvite={onCreateInvite}
+          invites={invites}
+          members={members}
+          userCommands={userCommands}
+          serverCommands={serverCommands}
+          userCommandForm={userCommandForm}
+          setUserCommandForm={setUserCommandForm}
+          serverCommandForm={serverCommandForm}
+          setServerCommandForm={setServerCommandForm}
+          onCreateUserCommand={onCreateUserCommand}
+          onCreateServerCommand={onCreateServerCommand}
+        />
+      ) : (
+        <>
+          <SidebarPanel
+            activeTab={leftRailTab}
+            members={members}
+            selectedServer={selectedServer}
+            selectedChannelId={selectedChannelId}
+            onSelectChannel={(id) => void onSelectChannel(id)}
+            unreadCountByChannel={unreadCountByChannel}
+            unreadBadgeCountByChannel={unreadBadgeCountByChannel}
+            showUnreadOnly={showUnreadOnly}
+            setShowUnreadOnly={setShowUnreadOnly}
+            visibleChannels={visibleChannels}
+            channelName={channelName}
+            setChannelName={setChannelName}
+            onCreateChannel={onCreateChannel}
+          />
 
-      <SidebarPanel
-        activeTab={leftRailTab}
-        servers={servers}
-        selectedServerId={selectedServerId}
-        onSelectServer={(id) => void onSelectServer(id)}
-        serverName={serverName}
-        setServerName={setServerName}
-        onCreateServer={onCreateServer}
-        joinInviteCode={joinInviteCode}
-        setJoinInviteCode={setJoinInviteCode}
-        onJoinInvite={onJoinInvite}
-        inviteRoleToGrant={inviteRoleToGrant}
-        setInviteRoleToGrant={setInviteRoleToGrant}
-        inviteMaxUses={inviteMaxUses}
-        setInviteMaxUses={setInviteMaxUses}
-        inviteExpiresHours={inviteExpiresHours}
-        setInviteExpiresHours={setInviteExpiresHours}
-        onCreateInvite={onCreateInvite}
-        invites={invites}
-        members={members}
-        selectedServer={selectedServer}
-        channels={channels}
-        selectedChannelId={selectedChannelId}
-        onSelectChannel={(id) => void onSelectChannel(id)}
-        unreadCountByChannel={unreadCountByChannel}
-        unreadBadgeCountByChannel={unreadBadgeCountByChannel}
-        showUnreadOnly={showUnreadOnly}
-        setShowUnreadOnly={setShowUnreadOnly}
-        visibleChannels={visibleChannels}
-        channelName={channelName}
-        setChannelName={setChannelName}
-        onCreateChannel={onCreateChannel}
-      />
-
-      <section className="flex flex-col overflow-hidden border-r border-border bg-background">
-        {/* ── Global toolbar: search + library toggle + account menu ── */}
-        <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-border shrink-0">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <form
-              autoComplete="off"
-              className="flex gap-1.5 flex-1 min-w-0"
-              onSubmit={onSearchMessages}
-            >
-              <Input
-                placeholder="Search messages…"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                className="h-8 text-sm"
-              />
-              <Button
-                type="submit"
-                size=""
-                variant="secondary"
-                className="shrink-0"
-              >
-                Search
-              </Button>
-            </form>
+          <section className="flex flex-col overflow-hidden border-r border-border bg-background">
+        {/* ── Global toolbar: search ── */}
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0">
+          <form
+            autoComplete="off"
+            className="flex gap-1.5 flex-1 min-w-0"
+            onSubmit={onSearchMessages}
+          >
+            <Input
+              placeholder="Search messages…"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="h-8 text-sm"
+            />
             <Button
-              type="button"
-              size=""
-              variant={centerPane === "library" ? "default" : "ghost"}
-              onClick={() =>
-                setCenterPane((prev) => {
-                  const next = prev === "chat" ? "library" : "chat";
-                  if (next === "library") setChannelSettingsOpen(false);
-                  return next;
-                })
-              }
+              type="submit"
+              variant="secondary"
               className="shrink-0"
             >
-              {centerPane === "chat" ? "Library" : "Chat"}
+              Search
             </Button>
-          </div>
-          <AccountMenu
-            user={user}
-            open={accountMenuOpen}
-            setOpen={setAccountMenuOpen}
-            menuRef={accountMenuRef}
-            onProfile={() => onOpenAccountView("profile")}
-            onSettings={() => onOpenAccountView("settings")}
-            onAccessibility={() => onOpenAccountView("accessibility")}
-            onLogout={() => {
-              setAccountMenuOpen(false);
-              void logout();
-            }}
-          />
+          </form>
         </div>
 
         {/* ── Search results ── */}
@@ -2418,15 +2469,7 @@ export function App() {
           <h2 className="text-sm font-semibold m-0">
             {centerPane === "library"
               ? "Library"
-              : centerPane === "design"
-                ? "Design system"
-                : centerPane === "account"
-                  ? accountView === "profile"
-                    ? "Profile"
-                    : accountView === "settings"
-                      ? "Settings"
-                      : "Accessibility"
-                  : selectedChannel
+              : selectedChannel
                     ? `#${selectedChannel.name}`
                     : "Pick a channel"}
           </h2>
@@ -2938,9 +2981,7 @@ export function App() {
         )}
 
         {/* ── Main content area ── */}
-        {centerPane === "design" ? (
-          <DesignSystemPage />
-        ) : centerPane === "chat" ? (
+        {centerPane === "chat" ? (
           <MessageList
             messages={messages}
             linkPreviews={linkPreviews}
@@ -2957,93 +2998,7 @@ export function App() {
               void onMessageListBottomStateChange(atBottom);
             }}
           />
-        ) : centerPane === "library" ? (
-          <LibraryWorkspace
-            filteredLibraryItems={filteredLibraryItems}
-            selectedLibraryItemIds={selectedLibraryItemIds}
-            setSelectedLibraryItemIds={setSelectedLibraryItemIds}
-            dragOverLibraryItemId={dragOverLibraryItemId}
-            canReorderCollection={canReorderCollection}
-            onLibraryItemDragStart={onLibraryItemDragStart}
-            onLibraryItemDragOver={onLibraryItemDragOver}
-            onLibraryItemDragEnd={onLibraryItemDragEnd}
-            onLibraryItemDrop={onLibraryItemDrop}
-            onSelectAllFilteredLibraryItems={onSelectAllFilteredLibraryItems}
-            onClearLibrarySelection={onClearLibrarySelection}
-            getLibraryThumbnail={getLibraryThumbnail}
-            decodeHtmlEntities={decodeHtmlEntities}
-            editingLibraryItem={editingLibraryItem}
-            metadataTitleDraft={metadataTitleDraft}
-            setMetadataTitleDraft={setMetadataTitleDraft}
-            metadataDescriptionDraft={metadataDescriptionDraft}
-            setMetadataDescriptionDraft={setMetadataDescriptionDraft}
-            metadataTermsDraft={metadataTermsDraft}
-            setMetadataTermsDraft={setMetadataTermsDraft}
-            guessTaxonomySuggestions={guessTaxonomySuggestions}
-            onApplySuggestedTerm={onApplySuggestedTerm}
-            onSaveLibraryMetadata={onSaveLibraryMetadata}
-            onSetMetadataDraft={onSetMetadataDraft}
-            setEditingLibraryItem={setEditingLibraryItem}
-            busy={busy}
-            collections={collections}
-            collectionName={collectionName}
-            setCollectionName={setCollectionName}
-            collectionVisibility={collectionVisibility}
-            setCollectionVisibility={setCollectionVisibility}
-            onCreateCollection={onCreateCollection}
-            selectedCollectionId={selectedCollectionId}
-            setSelectedCollectionId={setSelectedCollectionId}
-            selectedCollection={selectedCollection}
-            onAddSelectedToCollection={onAddSelectedToCollection}
-            onAddFilteredToCollection={onAddFilteredToCollection}
-            onRemoveSelectedFromCollection={onRemoveSelectedFromCollection}
-            libraryScope={libraryScope}
-            setLibraryScope={setLibraryScope}
-            libraryQuery={libraryQuery}
-            setLibraryQuery={setLibraryQuery}
-            libraryPosterFilter={libraryPosterFilter}
-            setLibraryPosterFilter={setLibraryPosterFilter}
-            libraryTypeFilter={libraryTypeFilter}
-            setLibraryTypeFilter={setLibraryTypeFilter}
-            libraryTaxonomyFilter={libraryTaxonomyFilter}
-            setLibraryTaxonomyFilter={setLibraryTaxonomyFilter}
-            libraryDateFrom={libraryDateFrom}
-            setLibraryDateFrom={setLibraryDateFrom}
-            libraryDateTo={libraryDateTo}
-            setLibraryDateTo={setLibraryDateTo}
-            librarySort={librarySort}
-            setLibrarySort={setLibrarySort}
-            availablePosterFacets={availablePosterFacets}
-            availableTaxonomyFacets={availableTaxonomyFacets}
-            visibleTaxonomySuggestions={visibleTaxonomySuggestions}
-            taxonomyQuickInput={taxonomyQuickInput}
-            setTaxonomyQuickInput={setTaxonomyQuickInput}
-            onTaxonomySuggestionClick={onTaxonomySuggestionClick}
-            onApplyTaxonomyTerm={onApplyTaxonomyTerm}
-            onApplyTaxonomyTermToFiltered={onApplyTaxonomyTermToFiltered}
-            onUseTaxonomyTermAsFilter={onUseTaxonomyTermAsFilter}
-          />
-        ) : (
-          <AccountWorkspace
-            accountView={accountView}
-            user={{ id: user.id }}
-            profileForm={profileForm}
-            setProfileForm={setProfileForm}
-            onSaveProfile={onSaveProfile}
-            profilePhotos={profilePhotos}
-            servers={servers}
-            busy={busy}
-            centerPane={centerPane}
-            setCenterPane={setCenterPane}
-            showUnreadOnly={showUnreadOnly}
-            setShowUnreadOnly={setShowUnreadOnly}
-            changePasswordForm={changePasswordForm}
-            setChangePasswordForm={setChangePasswordForm}
-            onChangePassword={onChangePassword}
-            uiPrefs={uiPrefs}
-            setUiPrefs={setUiPrefs}
-          />
-        )}
+        ) : null}
 
         {/* ── Composer ── */}
         {centerPane === "chat" && (
@@ -3093,24 +3048,17 @@ export function App() {
           </form>
         )}
       </section>
-
-      <ThreadPanel
-        threadMessages={threadMessages}
-        threadComposer={threadComposer}
-        setThreadComposer={setThreadComposer}
-        onSendThreadMessage={onSendThreadMessage}
-        selectedThreadRootId={selectedThreadRootId}
-        busy={busy}
-        userCommands={userCommands}
-        serverCommands={serverCommands}
-        selectedServerId={selectedServerId}
-        userCommandForm={userCommandForm}
-        setUserCommandForm={setUserCommandForm}
-        serverCommandForm={serverCommandForm}
-        setServerCommandForm={setServerCommandForm}
-        onCreateUserCommand={onCreateUserCommand}
-        onCreateServerCommand={onCreateServerCommand}
-      />
+          <ThreadPanel
+            threadMessages={threadMessages}
+            threadComposer={threadComposer}
+            setThreadComposer={setThreadComposer}
+            onSendThreadMessage={onSendThreadMessage}
+            selectedThreadRootId={selectedThreadRootId}
+            onCloseThread={() => setSelectedThreadRootId("")}
+            busy={busy}
+          />
+        </>
+      )}
 
       {lightboxIndex !== null && galleryImages[lightboxIndex] ? (
         /* Backdrop */

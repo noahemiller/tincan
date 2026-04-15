@@ -15,34 +15,14 @@ type ThreadMessage = {
   attachments: { id: string; mime_type: string; original_name: string; public_url: string }[];
 };
 
-type Command = { id: string; command: string; response_text: string };
-
 type ThreadPanelProps = {
   threadMessages: ThreadMessage[];
   threadComposer: string;
   setThreadComposer: (v: string) => void;
   onSendThreadMessage: (e: FormEvent<HTMLFormElement>) => void;
   selectedThreadRootId: string;
+  onCloseThread: () => void;
   busy: boolean;
-  userCommands: Command[];
-  serverCommands: Command[];
-  selectedServerId: string;
-  userCommandForm: { command: string; responseText: string };
-  setUserCommandForm: (
-    updater: (prev: { command: string; responseText: string }) => {
-      command: string;
-      responseText: string;
-    }
-  ) => void;
-  serverCommandForm: { command: string; responseText: string };
-  setServerCommandForm: (
-    updater: (prev: { command: string; responseText: string }) => {
-      command: string;
-      responseText: string;
-    }
-  ) => void;
-  onCreateUserCommand: (e: FormEvent<HTMLFormElement>) => void;
-  onCreateServerCommand: (e: FormEvent<HTMLFormElement>) => void;
 };
 
 /* ─── Small reusable accordion ────────────────────────────────────────────── */
@@ -74,31 +54,14 @@ function Accordion({
   );
 }
 
-/* ─── Command chip ─────────────────────────────────────────────────────────── */
-function CommandChip({ cmd }: { cmd: string }) {
-  return (
-    <span className="text-[11px] font-mono px-2 py-0.5 rounded-full border border-border bg-muted text-muted-foreground">
-      /{cmd}
-    </span>
-  );
-}
-
 export function ThreadPanel({
   threadMessages,
   threadComposer,
   setThreadComposer,
   onSendThreadMessage,
   selectedThreadRootId,
+  onCloseThread,
   busy,
-  userCommands,
-  serverCommands,
-  selectedServerId,
-  userCommandForm,
-  setUserCommandForm,
-  serverCommandForm,
-  setServerCommandForm,
-  onCreateUserCommand,
-  onCreateServerCommand,
 }: ThreadPanelProps) {
   return (
     <aside className="sidebar unread flex flex-col gap-1 py-2 border-l border-border bg-card h-full overflow-y-auto">
@@ -106,6 +69,11 @@ export function ThreadPanel({
       {/* ── Thread ──────────────────────────────────────────────────────── */}
       {selectedThreadRootId && (
         <Accordion label="Thread" defaultOpen>
+          <div className="flex justify-end mb-2">
+            <Button type="button" size="sm" variant="ghost" onClick={onCloseThread}>
+              Close
+            </Button>
+          </div>
           <div className="flex flex-col gap-1 max-h-[220px] overflow-y-auto mb-2">
             {threadMessages.map((msg) => (
               <article
@@ -146,80 +114,6 @@ export function ThreadPanel({
           </form>
         </Accordion>
       )}
-
-      {/* Divider between thread and commands if thread is visible */}
-      {selectedThreadRootId && (
-        <div className="mx-3 my-1 h-px bg-border" />
-      )}
-
-      {/* ── My commands ─────────────────────────────────────────────────── */}
-      <Accordion label="My Commands">
-        <form
-          autoComplete="off"
-          onSubmit={onCreateUserCommand}
-          className="flex flex-col gap-1.5 mb-2"
-        >
-          <Input
-            placeholder="/command"
-            value={userCommandForm.command}
-            onChange={(e) =>
-              setUserCommandForm((prev) => ({ ...prev, command: e.target.value }))
-            }
-          />
-          <Input
-            placeholder="Response text (use {{args}})"
-            value={userCommandForm.responseText}
-            onChange={(e) =>
-              setUserCommandForm((prev) => ({ ...prev, responseText: e.target.value }))
-            }
-          />
-          <Button type="submit" size="sm">
-            Save
-          </Button>
-        </form>
-        {userCommands.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {userCommands.map((cmd) => (
-              <CommandChip key={cmd.id} cmd={cmd.command} />
-            ))}
-          </div>
-        )}
-      </Accordion>
-
-      {/* ── Server commands ──────────────────────────────────────────────── */}
-      <Accordion label="Server Commands">
-        <form
-          autoComplete="off"
-          onSubmit={onCreateServerCommand}
-          className="flex flex-col gap-1.5 mb-2"
-        >
-          <Input
-            placeholder="/command"
-            value={serverCommandForm.command}
-            onChange={(e) =>
-              setServerCommandForm((prev) => ({ ...prev, command: e.target.value }))
-            }
-          />
-          <Input
-            placeholder="Response text (use {{args}})"
-            value={serverCommandForm.responseText}
-            onChange={(e) =>
-              setServerCommandForm((prev) => ({ ...prev, responseText: e.target.value }))
-            }
-          />
-          <Button type="submit" size="sm" disabled={!selectedServerId}>
-            Save
-          </Button>
-        </form>
-        {serverCommands.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {serverCommands.map((cmd) => (
-              <CommandChip key={cmd.id} cmd={cmd.command} />
-            ))}
-          </div>
-        )}
-      </Accordion>
-
     </aside>
   );
 }
