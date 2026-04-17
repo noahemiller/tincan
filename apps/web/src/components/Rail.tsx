@@ -16,7 +16,7 @@ const TABS: {
 }[] = [
   { id: "channels", label: "Channels", icon: "/tincan-megaphone.svg" },
   { id: "dms", label: "DMs", icon: "/tincan-two-cans.svg" },
-  { id: "library", label: "Library", icon: "/tincan-server.svg" },
+  { id: "library", label: "Library", icon: "/tincan-can.svg" },
   { id: "settings", label: "Settings", icon: "/tincan-server.svg" },
 ];
 
@@ -26,15 +26,6 @@ export function Rail({ activeTab, onTabChange }: RailProps) {
 
   return (
     <aside className="flex flex-col items-center px-1.5 py-2 border-r border-border bg-card h-full">
-      {/* Brand */}
-      <div className="w-full px-0.5 pb-3 pt-1 shrink-0">
-        <img
-          src="/tincan-logo.svg"
-          alt="Tincan"
-          className="w-full h-8 object-contain"
-        />
-      </div>
-
       {/* Nav tabs */}
       <nav className="flex flex-col gap-1 w-full flex-1">
         {TABS.map(({ id, label, icon }) => (

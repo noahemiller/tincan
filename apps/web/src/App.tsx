@@ -9,8 +9,10 @@ import {
   useState,
 } from "react";
 import { AuthShell } from "./components/AuthShell";
+import { DirectMessagesMock } from "./components/DirectMessagesMock";
 import { SettingsLayout, type SettingsView } from "./components/SettingsLayout";
 import { LibraryLayout } from "./components/LibraryLayout";
+import type { ViewFilter } from "./components/LibraryWorkspace";
 import { MessageList } from "./components/MessageList";
 import { Rail, type RailTab } from "./components/Rail";
 import { SidebarPanel } from "./components/SidebarPanel";
@@ -18,7 +20,7 @@ import { ThreadPanel } from "./components/ThreadPanel";
 import { Button } from "./components/ui/button";
 import { Checkbox } from "./components/ui/checkbox";
 import { Collapsible, CollapsibleContent } from "./components/ui/collapsible";
-import { Dialog, DialogContent } from "./components/ui/dialog";
+import { Lightbox } from "./components/Lightbox";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import {
@@ -29,7 +31,7 @@ import {
   SelectValue,
 } from "./components/ui/select";
 import { extractUrls } from "./lib/chat";
-import { Paperclip, Settings2 } from "lucide-react";
+import { Paperclip, Settings2, PanelLeft } from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "./api";
@@ -462,7 +464,8 @@ export function App() {
   const [settingsView, setSettingsView] = useState<SettingsView>("profile");
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [leftRailTab, setLeftRailTab] = useState<RailTab>("channels");
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [isChannelsAsideOpen, setIsChannelsAsideOpen] = useState(true);
+  const [lightboxActiveId, setLightboxActiveId] = useState<string | null>(null);
   const [linkPreviews, setLinkPreviews] = useState<Record<string, LinkPreview>>(
     {},
   );
@@ -514,6 +517,13 @@ export function App() {
   const [dragOverLibraryItemId, setDragOverLibraryItemId] = useState<
     string | null
   >(null);
+  const [libraryViewFilter, setLibraryViewFilter] = useState<ViewFilter>("all");
+  const [libraryAsideOpen, setLibraryAsideOpen] = useState(true);
+  const [libraryImageSize, setLibraryImageSize] = useState(4);
+  const [libraryTilePrimaryId, setLibraryTilePrimaryId] = useState<
+    string | null
+  >(null);
+  const [libraryTileMultiIds, setLibraryTileMultiIds] = useState<string[]>([]);
   const [inviteRoleToGrant, setInviteRoleToGrant] = useState<
     "admin" | "member"
   >("member");
@@ -921,47 +931,6 @@ export function App() {
   }, [token, messages, linkPreviews]);
 
   useEffect(() => {
-    if (lightboxIndex === null) {
-      return;
-    }
-
-    if (galleryImages.length === 0 || lightboxIndex >= galleryImages.length) {
-      setLightboxIndex(null);
-    }
-  }, [galleryImages, lightboxIndex]);
-
-  useEffect(() => {
-    if (lightboxIndex === null || galleryImages.length === 0) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setLightboxIndex(null);
-      }
-      if (event.key === "ArrowLeft") {
-        setLightboxIndex((prev) => {
-          if (prev === null) {
-            return prev;
-          }
-          return (prev - 1 + galleryImages.length) % galleryImages.length;
-        });
-      }
-      if (event.key === "ArrowRight") {
-        setLightboxIndex((prev) => {
-          if (prev === null) {
-            return prev;
-          }
-          return (prev + 1) % galleryImages.length;
-        });
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [lightboxIndex, galleryImages.length]);
-
-  useEffect(() => {
     if (!token || !selectedCollectionId) {
       setCollectionItems([]);
       return;
@@ -980,6 +949,8 @@ export function App() {
   useEffect(() => {
     const activeIds = new Set(activeLibraryItems.map((item) => item.id));
     setSelectedLibraryItemIds((prev) => prev.filter((id) => activeIds.has(id)));
+    setLibraryTileMultiIds((prev) => prev.filter((id) => activeIds.has(id)));
+    setLibraryTilePrimaryId((id) => (id && activeIds.has(id) ? id : null));
   }, [activeLibraryItems]);
 
   useEffect(() => {
@@ -1078,7 +1049,8 @@ export function App() {
         }
       }
 
-      const msg = cause instanceof Error ? cause.message : "Failed to load session";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to load session";
       setError(msg);
       toast.error(msg);
       await logout();
@@ -1190,7 +1162,8 @@ export function App() {
       setToken(accessToken);
       setUser(result.user);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Authentication failed";
+      const msg =
+        cause instanceof Error ? cause.message : "Authentication failed";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1213,7 +1186,10 @@ export function App() {
       setResetTokenExpiresAt(result.expiresAt ?? "");
       setError("");
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to request password reset";
+      const msg =
+        cause instanceof Error
+          ? cause.message
+          : "Failed to request password reset";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1240,7 +1216,8 @@ export function App() {
       setResetTokenPreview("");
       setResetTokenExpiresAt("");
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to reset password";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to reset password";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1261,7 +1238,8 @@ export function App() {
       setServerName("");
       await bootstrap(token);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to create server";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to create server";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1284,7 +1262,8 @@ export function App() {
       setChannelName("");
       await loadChannels(token, selectedServerId);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to create channel";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to create channel";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1312,7 +1291,8 @@ export function App() {
       setInviteExpiresHours("");
       await loadServerAdminData(token, selectedServerId);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to create invite";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to create invite";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1346,7 +1326,8 @@ export function App() {
 
       setJoinInviteCode("");
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to join invite";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to join invite";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1382,7 +1363,8 @@ export function App() {
       const unreadResult = await api.unread(token);
       setUnread(unreadResult.unread);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to send message";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to send message";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1402,7 +1384,8 @@ export function App() {
       const result = await api.uploadToChannel(token, selectedChannelId, file);
       setPendingMedia((prev) => [...prev, result.media]);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to upload file";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to upload file";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1422,7 +1405,8 @@ export function App() {
       const result = await api.threadMessages(token, rootMessageId);
       setThreadMessages(result.messages);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to load thread";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to load thread";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1449,7 +1433,10 @@ export function App() {
         await loadMessages(token, selectedChannelId);
       }
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to post thread message";
+      const msg =
+        cause instanceof Error
+          ? cause.message
+          : "Failed to post thread message";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1483,7 +1470,10 @@ export function App() {
         await loadChannels(token, selectedServerId);
       }
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to update channel preference";
+      const msg =
+        cause instanceof Error
+          ? cause.message
+          : "Failed to update channel preference";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1560,7 +1550,8 @@ export function App() {
         message.includes("/items/order") &&
         message.includes("not found");
       if (routeMissing) {
-        const routeMsg = "Drag order updated locally. Restart API to enable saved reorder (`/items/order`).";
+        const routeMsg =
+          "Drag order updated locally. Restart API to enable saved reorder (`/items/order`).";
         setError(routeMsg);
         toast.error(routeMsg);
         return;
@@ -1657,7 +1648,8 @@ export function App() {
         message.includes("/api/library/items/") &&
         message.includes("not found");
       if (missingMetadataRoutes) {
-        const metaMsg = "Metadata save route is unavailable on the running API. Restart/rebuild the API service, then try again.";
+        const metaMsg =
+          "Metadata save route is unavailable on the running API. Restart/rebuild the API service, then try again.";
         setError(metaMsg);
         toast.error(metaMsg);
       } else {
@@ -1680,7 +1672,8 @@ export function App() {
       const result = await api.collectionItems(token, selectedCollectionId);
       setCollectionItems(result.items);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to add filtered items";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to add filtered items";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1698,7 +1691,9 @@ export function App() {
       setError(
         'Select one or more library cards to apply a term, or use "Use As Filter".',
       );
-      toast.error('Select one or more library cards to apply a term, or use "Use As Filter".');
+      toast.error(
+        'Select one or more library cards to apply a term, or use "Use As Filter".',
+      );
       return;
     }
 
@@ -1752,7 +1747,10 @@ export function App() {
         );
       }
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to apply taxonomy term";
+      const msg =
+        cause instanceof Error
+          ? cause.message
+          : "Failed to apply taxonomy term";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1778,6 +1776,8 @@ export function App() {
 
   function onClearLibrarySelection() {
     setSelectedLibraryItemIds([]);
+    setLibraryTilePrimaryId(null);
+    setLibraryTileMultiIds([]);
   }
 
   function onLibraryItemDragStart(event: DragEvent<Element>, itemId: string) {
@@ -1844,7 +1844,8 @@ export function App() {
       await loadLibraryAndCollections(token, selectedServerId);
       setSelectedCollectionId(result.collection.id);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to create collection";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to create collection";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1872,7 +1873,10 @@ export function App() {
       const result = await api.collectionItems(token, selectedCollectionId);
       setCollectionItems(result.items);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to add items to collection";
+      const msg =
+        cause instanceof Error
+          ? cause.message
+          : "Failed to add items to collection";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -1900,7 +1904,10 @@ export function App() {
       const result = await api.collectionItems(token, selectedCollectionId);
       setCollectionItems(result.items);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to remove items from collection";
+      const msg =
+        cause instanceof Error
+          ? cause.message
+          : "Failed to remove items from collection";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -2020,6 +2027,11 @@ export function App() {
     setLibraryDateFrom("");
     setLibraryDateTo("");
     setLibrarySort("newest");
+    setLibraryViewFilter("all");
+    setLibraryAsideOpen(true);
+    setLibraryImageSize(4);
+    setLibraryTilePrimaryId(null);
+    setLibraryTileMultiIds([]);
     setEditingLibraryItem(null);
     setMetadataTitleDraft("");
     setMetadataDescriptionDraft("");
@@ -2058,7 +2070,10 @@ export function App() {
       const result = await api.userCommands(token);
       setUserCommands(result.commands);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to create user command";
+      const msg =
+        cause instanceof Error
+          ? cause.message
+          : "Failed to create user command";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -2088,7 +2103,10 @@ export function App() {
       const result = await api.serverCommands(token, selectedServerId);
       setServerCommands(result.commands);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to create server command";
+      const msg =
+        cause instanceof Error
+          ? cause.message
+          : "Failed to create server command";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -2097,10 +2115,7 @@ export function App() {
   }
 
   function onOpenLightbox(attachmentId: string) {
-    const index = galleryImages.findIndex((image) => image.id === attachmentId);
-    if (index >= 0) {
-      setLightboxIndex(index);
-    }
+    setLightboxActiveId(attachmentId);
   }
 
   function onOpenSettingsView(view: SettingsView) {
@@ -2197,7 +2212,8 @@ export function App() {
       setUser(result.user);
       setError("");
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to save profile";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to save profile";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -2234,7 +2250,8 @@ export function App() {
       toast.success("Password updated. Please log in again.");
       await logout();
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : "Failed to change password";
+      const msg =
+        cause instanceof Error ? cause.message : "Failed to change password";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -2277,14 +2294,28 @@ export function App() {
   const isFullscreenMode =
     leftRailTab === "settings" || leftRailTab === "library";
   const threadOpen = !!selectedThreadRootId;
+  const isChannelsTab = leftRailTab === "channels";
+  const showChannelsAside = !isChannelsTab || isChannelsAsideOpen;
 
   const shellStyle: CSSProperties = isFullscreenMode
     ? { gridTemplateColumns: "56px 1fr" }
     : {
         ...selectedChannelThemeStyle,
-        ...(threadOpen
-          ? { gridTemplateColumns: "56px 240px 1fr 256px" }
-          : undefined),
+        ...(isChannelsTab
+          ? threadOpen
+            ? {
+                gridTemplateColumns: showChannelsAside
+                  ? "56px 240px 1fr 256px"
+                  : "56px 1fr 256px",
+              }
+            : {
+                gridTemplateColumns: showChannelsAside
+                  ? "56px 240px 1fr"
+                  : "56px 1fr",
+              }
+          : threadOpen
+            ? { gridTemplateColumns: "56px 240px 1fr 256px" }
+            : undefined),
       };
 
   return (
@@ -2298,6 +2329,16 @@ export function App() {
           <LibraryLayout
             selectedServerName={selectedServer?.name}
             selectedChannelName={selectedChannel?.name}
+            viewFilter={libraryViewFilter}
+            onViewFilterChange={setLibraryViewFilter}
+            isAsideOpen={libraryAsideOpen}
+            onToggleAside={() => setLibraryAsideOpen((prev) => !prev)}
+            libraryImageSize={libraryImageSize}
+            setLibraryImageSize={setLibraryImageSize}
+            libraryTilePrimaryId={libraryTilePrimaryId}
+            setLibraryTilePrimaryId={setLibraryTilePrimaryId}
+            libraryTileMultiIds={libraryTileMultiIds}
+            setLibraryTileMultiIds={setLibraryTileMultiIds}
             filteredLibraryItems={filteredLibraryItems}
             selectedLibraryItemIds={selectedLibraryItemIds}
             setSelectedLibraryItemIds={setSelectedLibraryItemIds}
@@ -2416,705 +2457,830 @@ export function App() {
           />
         ) : (
           <>
-            <SidebarPanel
-              activeTab={leftRailTab}
-              members={members}
-              servers={servers}
-              selectedServer={selectedServer}
-              selectedServerId={selectedServerId}
-              onSelectServer={(id) => void onSelectServer(id)}
-              selectedChannelId={selectedChannelId}
-              onSelectChannel={(id) => void onSelectChannel(id)}
-              unreadCountByChannel={unreadCountByChannel}
-              unreadBadgeCountByChannel={unreadBadgeCountByChannel}
-              showUnreadOnly={showUnreadOnly}
-              setShowUnreadOnly={setShowUnreadOnly}
-              visibleChannels={visibleChannels}
-              channelName={channelName}
-              setChannelName={setChannelName}
-              onCreateChannel={onCreateChannel}
-            />
+            {showChannelsAside && (
+              <SidebarPanel
+                activeTab={leftRailTab}
+                members={members}
+                servers={servers}
+                selectedServer={selectedServer}
+                selectedServerId={selectedServerId}
+                onSelectServer={(id) => void onSelectServer(id)}
+                selectedChannelId={selectedChannelId}
+                onSelectChannel={(id) => void onSelectChannel(id)}
+                unreadCountByChannel={unreadCountByChannel}
+                unreadBadgeCountByChannel={unreadBadgeCountByChannel}
+                showUnreadOnly={showUnreadOnly}
+                setShowUnreadOnly={setShowUnreadOnly}
+                visibleChannels={visibleChannels}
+                channelName={channelName}
+                setChannelName={setChannelName}
+                onCreateChannel={onCreateChannel}
+              />
+            )}
 
             <section className="flex flex-col overflow-hidden border-r border-border bg-background">
-              {/* ── Global toolbar: search ── */}
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0">
-                <form
-                  autoComplete="off"
-                  className="flex gap-1.5 flex-1 min-w-0"
-                  onSubmit={onSearchMessages}
-                >
-                  <Input
-                    placeholder="Search messages…"
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    className="h-8 text-sm"
-                  />
-                  <Button
-                    type="submit"
-                    variant="secondary"
-                    className="shrink-0"
-                  >
-                    Search
-                  </Button>
-                </form>
-              </div>
-
-              {/* ── Search results ── */}
-              {searchResults.length > 0 && (
-                <div className="px-3 pt-2 pb-1 border-b border-border max-h-[200px] overflow-y-auto shrink-0">
-                  <div className="flex flex-col gap-1.5">
-                    {searchResults.slice(0, 6).map((result) => (
-                      <article
-                        key={result.id}
-                        className="rounded-md border border-border bg-card px-3 py-2 flex flex-col gap-0.5"
-                      >
-                        <div className="flex items-center gap-2">
-                          <strong className="text-xs font-semibold">
-                            {result.author_name}
-                          </strong>
-                          <span className="text-[11px] text-muted-foreground">
-                            #{result.channel_name}
-                          </span>
-                        </div>
-                        <p className="text-xs text-foreground m-0 line-clamp-2">
-                          {result.body}
-                        </p>
-                      </article>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Channel header ── */}
-              <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
-                <h2 className="text-sm font-semibold m-0">
-                  {centerPane === "library"
-                    ? "Library"
-                    : selectedChannel
-                      ? `#${selectedChannel.name}`
-                      : "Pick a channel"}
-                </h2>
-                {centerPane === "chat" && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                    aria-label="Channel settings"
-                    title="Channel alert settings"
-                    disabled={!selectedChannelId}
-                    onClick={() => setChannelSettingsOpen((prev) => !prev)}
-                  >
-                    <Settings2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-
-              {/* ── Channel settings accordion ── */}
-              {centerPane === "chat" && (
-                <Collapsible open={channelSettingsOpen}>
-                  <CollapsibleContent>
+              {leftRailTab === "dms" ? (
+                <DirectMessagesMock />
+              ) : (
+                <>
+                  {/* ── Global toolbar: search ── */}
+                  {/*}
+                  <div className="flex items-center gap-2 px-3 py-2 border-b border-border shrink-0">
                     <form
                       autoComplete="off"
-                      className="grid grid-cols-[1fr_1fr_auto] gap-3 px-3 py-2.5 bg-muted/50 items-end"
-                      onSubmit={onSaveChannelPreference}
+                      className="flex gap-1.5 flex-1 min-w-0"
+                      onSubmit={onSearchMessages}
                     >
-                      <div className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
-                        Mode
-                        <Select
-                          value={channelMode}
-                          onValueChange={(value) =>
-                            setChannelMode(
-                              value as "hidden" | "passive" | "active",
-                            )
+                      <Input
+                        placeholder="Search messages…"
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        className="h-8 text-sm"
+                      />
+                      <Button
+                        type="submit"
+                        variant="secondary"
+                        className="shrink-0"
+                      >
+                        Search
+                      </Button>
+                    </form>
+                  </div>
+                  */}
+
+                  {/* ── Search results ── */}
+                  {searchResults.length > 0 && (
+                    <div className="px-3 pt-2 pb-1 border-b border-border max-h-[200px] overflow-y-auto shrink-0">
+                      <div className="flex flex-col gap-1.5">
+                        {searchResults.slice(0, 6).map((result) => (
+                          <article
+                            key={result.id}
+                            className="rounded-md border border-border bg-card px-3 py-2 flex flex-col gap-0.5"
+                          >
+                            <div className="flex items-center gap-2">
+                              <strong className="text-xs font-semibold">
+                                {result.author_name}
+                              </strong>
+                              <span className="text-[11px] text-muted-foreground">
+                                #{result.channel_name}
+                              </span>
+                            </div>
+                            <p className="text-xs text-foreground m-0 line-clamp-2">
+                              {result.body}
+                            </p>
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Channel header ── */}
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
+                    <div className="flex items-center gap-2">
+                      {leftRailTab === "channels" && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          aria-label={
+                            isChannelsAsideOpen
+                              ? "Collapse sidebar"
+                              : "Expand sidebar"
+                          }
+                          title={
+                            isChannelsAsideOpen
+                              ? "Collapse sidebar"
+                              : "Expand sidebar"
+                          }
+                          onClick={() =>
+                            setIsChannelsAsideOpen((prev) => !prev)
                           }
                         >
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="passive">Passive</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="hidden">Hidden</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <label className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
-                        Snooze (hours)
+                          <PanelLeft className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <h2 className="text-sm font-semibold m-0">
+                        {centerPane === "library"
+                          ? "Library"
+                          : selectedChannel
+                            ? `#${selectedChannel.name}`
+                            : "Pick a channel"}
+                      </h2>
+                    </div>
+                    {centerPane === "chat" && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                        aria-label="Channel settings"
+                        title="Channel alert settings"
+                        disabled={!selectedChannelId}
+                        onClick={() => setChannelSettingsOpen((prev) => !prev)}
+                      >
+                        <Settings2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* ── Channel settings accordion ── */}
+                  {centerPane === "chat" && (
+                    <Collapsible open={channelSettingsOpen}>
+                      <CollapsibleContent>
+                        <form
+                          autoComplete="off"
+                          className="grid grid-cols-[1fr_1fr_auto] gap-3 px-3 py-2.5 bg-muted/50 items-end"
+                          onSubmit={onSaveChannelPreference}
+                        >
+                          <div className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
+                            Mode
+                            <Select
+                              value={channelMode}
+                              onValueChange={(value) =>
+                                setChannelMode(
+                                  value as "hidden" | "passive" | "active",
+                                )
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="passive">Passive</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="hidden">Hidden</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <label className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
+                            Snooze (hours)
+                            <Input
+                              type="number"
+                              min="0"
+                              value={channelSnoozeHours}
+                              onChange={(event) =>
+                                setChannelSnoozeHours(event.target.value)
+                              }
+                              className="h-8"
+                            />
+                          </label>
+                          <Button
+                            type="submit"
+                            size="sm"
+                            disabled={!selectedChannelId}
+                          >
+                            Save
+                          </Button>
+                        </form>
+                        <section className="px-3 py-3 border-t border-border/70 bg-muted/40 flex flex-col gap-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <h3 className="text-xs font-semibold m-0">
+                                Channel Module Config
+                              </h3>
+                              <p className="text-[11px] text-muted-foreground m-0.5">
+                                Per-channel module behavior with JSON
+                                import/export.
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={onDownloadChannelModuleConfig}
+                                disabled={!selectedChannelId}
+                              >
+                                Download
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  channelConfigUploadRef.current?.click()
+                                }
+                                disabled={!selectedChannelId}
+                              >
+                                Upload
+                              </Button>
+                              <input
+                                ref={channelConfigUploadRef}
+                                type="file"
+                                accept="application/json,.json"
+                                className="hidden"
+                                onChange={(event) => {
+                                  void onUploadChannelModuleConfigFile(event);
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="mod-dice"
+                                checked={
+                                  selectedChannelModuleConfig.modules.dice
+                                }
+                                onCheckedChange={(checked) =>
+                                  updateSelectedChannelModuleConfig((prev) => ({
+                                    ...prev,
+                                    modules: {
+                                      ...prev.modules,
+                                      dice: !!checked,
+                                    },
+                                  }))
+                                }
+                              />
+                              <Label htmlFor="mod-dice">Dice module</Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="mod-surveys"
+                                checked={
+                                  selectedChannelModuleConfig.modules.surveys
+                                }
+                                onCheckedChange={(checked) =>
+                                  updateSelectedChannelModuleConfig((prev) => ({
+                                    ...prev,
+                                    modules: {
+                                      ...prev.modules,
+                                      surveys: !!checked,
+                                    },
+                                  }))
+                                }
+                              />
+                              <Label htmlFor="mod-surveys">Survey module</Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="mod-music"
+                                checked={
+                                  selectedChannelModuleConfig.modules
+                                    .musicEmbeds
+                                }
+                                onCheckedChange={(checked) =>
+                                  updateSelectedChannelModuleConfig((prev) => ({
+                                    ...prev,
+                                    modules: {
+                                      ...prev.modules,
+                                      musicEmbeds: !!checked,
+                                    },
+                                  }))
+                                }
+                              />
+                              <Label htmlFor="mod-music">Music embeds</Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="mod-links"
+                                checked={
+                                  selectedChannelModuleConfig.modules
+                                    .linkPreviews
+                                }
+                                onCheckedChange={(checked) =>
+                                  updateSelectedChannelModuleConfig((prev) => ({
+                                    ...prev,
+                                    modules: {
+                                      ...prev.modules,
+                                      linkPreviews: !!checked,
+                                    },
+                                  }))
+                                }
+                              />
+                              <Label htmlFor="mod-links">Link previews</Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="mod-threads"
+                                checked={
+                                  selectedChannelModuleConfig.modules.threads
+                                }
+                                onCheckedChange={(checked) =>
+                                  updateSelectedChannelModuleConfig((prev) => ({
+                                    ...prev,
+                                    modules: {
+                                      ...prev.modules,
+                                      threads: !!checked,
+                                    },
+                                  }))
+                                }
+                              />
+                              <Label htmlFor="mod-threads">
+                                Thread replies
+                              </Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="mod-automark"
+                                checked={
+                                  selectedChannelModuleConfig.notifications
+                                    .autoMarkReadAtBottom
+                                }
+                                onCheckedChange={(checked) =>
+                                  updateSelectedChannelModuleConfig((prev) => ({
+                                    ...prev,
+                                    notifications: {
+                                      ...prev.notifications,
+                                      autoMarkReadAtBottom: !!checked,
+                                    },
+                                  }))
+                                }
+                              />
+                              <Label htmlFor="mod-automark">
+                                Auto-mark read at bottom
+                              </Label>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="mod-avatars"
+                                checked={
+                                  selectedChannelModuleConfig.ui.showAvatars
+                                }
+                                onCheckedChange={(checked) =>
+                                  updateSelectedChannelModuleConfig((prev) => ({
+                                    ...prev,
+                                    ui: { ...prev.ui, showAvatars: !!checked },
+                                  }))
+                                }
+                              />
+                              <Label htmlFor="mod-avatars">Show avatars</Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id="mod-badge"
+                                checked={
+                                  selectedChannelModuleConfig.notifications
+                                    .showUnreadBadge
+                                }
+                                onCheckedChange={(checked) =>
+                                  updateSelectedChannelModuleConfig((prev) => ({
+                                    ...prev,
+                                    notifications: {
+                                      ...prev.notifications,
+                                      showUnreadBadge: !!checked,
+                                    },
+                                  }))
+                                }
+                              />
+                              <Label htmlFor="mod-badge">
+                                Show unread badge
+                              </Label>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs max-w-[280px]">
+                            Message density
+                            <Select
+                              value={
+                                selectedChannelModuleConfig.ui.messageDensity
+                              }
+                              onValueChange={(value) =>
+                                updateSelectedChannelModuleConfig((prev) => ({
+                                  ...prev,
+                                  ui: {
+                                    ...prev.ui,
+                                    messageDensity:
+                                      value === "compact"
+                                        ? "compact"
+                                        : "comfortable",
+                                  },
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="h-7 text-xs w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="comfortable">
+                                  Comfortable
+                                </SelectItem>
+                                <SelectItem value="compact">Compact</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 max-w-[420px]">
+                            <label className="flex items-center gap-2 text-xs">
+                              Corner radius
+                              <Input
+                                type="number"
+                                min="0"
+                                max="96"
+                                value={
+                                  selectedChannelModuleConfig.ui.cornerRadiusPx
+                                }
+                                onChange={(event) =>
+                                  updateSelectedChannelModuleConfig((prev) => ({
+                                    ...prev,
+                                    ui: {
+                                      ...prev.ui,
+                                      cornerRadiusPx: Math.min(
+                                        96,
+                                        Math.max(
+                                          0,
+                                          Number(event.target.value || "0"),
+                                        ),
+                                      ),
+                                    },
+                                  }))
+                                }
+                                className="h-7 w-20"
+                              />
+                            </label>
+                            <label className="flex items-center gap-2 text-xs">
+                              Border thickness
+                              <Input
+                                type="number"
+                                min="0"
+                                max="24"
+                                value={
+                                  selectedChannelModuleConfig.ui.borderWidthPx
+                                }
+                                onChange={(event) =>
+                                  updateSelectedChannelModuleConfig((prev) => ({
+                                    ...prev,
+                                    ui: {
+                                      ...prev.ui,
+                                      borderWidthPx: Math.min(
+                                        24,
+                                        Math.max(
+                                          0,
+                                          Number(event.target.value || "0"),
+                                        ),
+                                      ),
+                                    },
+                                  }))
+                                }
+                                className="h-7 w-20"
+                              />
+                            </label>
+                          </div>
+                          <div className="pt-2 border-t border-border/60 flex flex-col gap-2">
+                            <div className="flex items-center gap-2 text-xs font-medium">
+                              <Checkbox
+                                id="mod-color-theme"
+                                checked={
+                                  selectedChannelModuleConfig.ui.colorTheme
+                                    .enabled
+                                }
+                                onCheckedChange={(checked) =>
+                                  updateSelectedChannelModuleConfig((prev) => ({
+                                    ...prev,
+                                    ui: {
+                                      ...prev.ui,
+                                      colorTheme: {
+                                        ...prev.ui.colorTheme,
+                                        enabled: !!checked,
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                              <Label htmlFor="mod-color-theme">
+                                Enable channel color theme
+                              </Label>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 max-w-[560px]">
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <label htmlFor="channel-color-background-1">
+                                  Background 1
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
+                                    {
+                                      selectedChannelModuleConfig.ui.colorTheme
+                                        .backgroundBase
+                                    }
+                                  </code>
+                                  <input
+                                    id="channel-color-background-1"
+                                    type="color"
+                                    value={
+                                      selectedChannelModuleConfig.ui.colorTheme
+                                        .backgroundBase
+                                    }
+                                    onChange={(event) =>
+                                      updateSelectedChannelModuleConfig(
+                                        (prev) => ({
+                                          ...prev,
+                                          ui: {
+                                            ...prev.ui,
+                                            colorTheme: {
+                                              ...prev.ui.colorTheme,
+                                              backgroundBase:
+                                                event.target.value.toUpperCase(),
+                                            },
+                                          },
+                                        }),
+                                      )
+                                    }
+                                    className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <label htmlFor="channel-color-background-2">
+                                  Background 2
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
+                                    {
+                                      selectedChannelModuleConfig.ui.colorTheme
+                                        .backgroundAlt
+                                    }
+                                  </code>
+                                  <input
+                                    id="channel-color-background-2"
+                                    type="color"
+                                    value={
+                                      selectedChannelModuleConfig.ui.colorTheme
+                                        .backgroundAlt
+                                    }
+                                    onChange={(event) =>
+                                      updateSelectedChannelModuleConfig(
+                                        (prev) => ({
+                                          ...prev,
+                                          ui: {
+                                            ...prev.ui,
+                                            colorTheme: {
+                                              ...prev.ui.colorTheme,
+                                              backgroundAlt:
+                                                event.target.value.toUpperCase(),
+                                            },
+                                          },
+                                        }),
+                                      )
+                                    }
+                                    className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <label htmlFor="channel-color-main">
+                                  Main color
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
+                                    {
+                                      selectedChannelModuleConfig.ui.colorTheme
+                                        .main
+                                    }
+                                  </code>
+                                  <input
+                                    id="channel-color-main"
+                                    type="color"
+                                    value={
+                                      selectedChannelModuleConfig.ui.colorTheme
+                                        .main
+                                    }
+                                    onChange={(event) =>
+                                      updateSelectedChannelModuleConfig(
+                                        (prev) => ({
+                                          ...prev,
+                                          ui: {
+                                            ...prev.ui,
+                                            colorTheme: {
+                                              ...prev.ui.colorTheme,
+                                              main: event.target.value.toUpperCase(),
+                                            },
+                                          },
+                                        }),
+                                      )
+                                    }
+                                    className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <label htmlFor="channel-color-highlight">
+                                  Highlight
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
+                                    {
+                                      selectedChannelModuleConfig.ui.colorTheme
+                                        .highlight
+                                    }
+                                  </code>
+                                  <input
+                                    id="channel-color-highlight"
+                                    type="color"
+                                    value={
+                                      selectedChannelModuleConfig.ui.colorTheme
+                                        .highlight
+                                    }
+                                    onChange={(event) =>
+                                      updateSelectedChannelModuleConfig(
+                                        (prev) => ({
+                                          ...prev,
+                                          ui: {
+                                            ...prev.ui,
+                                            colorTheme: {
+                                              ...prev.ui.colorTheme,
+                                              highlight:
+                                                event.target.value.toUpperCase(),
+                                            },
+                                          },
+                                        }),
+                                      )
+                                    }
+                                    className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <label htmlFor="channel-color-text">Text</label>
+                                <div className="flex items-center gap-2">
+                                  <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
+                                    {
+                                      selectedChannelModuleConfig.ui.colorTheme
+                                        .text
+                                    }
+                                  </code>
+                                  <input
+                                    id="channel-color-text"
+                                    type="color"
+                                    value={
+                                      selectedChannelModuleConfig.ui.colorTheme
+                                        .text
+                                    }
+                                    onChange={(event) =>
+                                      updateSelectedChannelModuleConfig(
+                                        (prev) => ({
+                                          ...prev,
+                                          ui: {
+                                            ...prev.ui,
+                                            colorTheme: {
+                                              ...prev.ui.colorTheme,
+                                              text: event.target.value.toUpperCase(),
+                                            },
+                                          },
+                                        }),
+                                      )
+                                    }
+                                    className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between gap-2 text-xs">
+                                <label htmlFor="channel-color-border">
+                                  Border
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
+                                    {
+                                      selectedChannelModuleConfig.ui.colorTheme
+                                        .border
+                                    }
+                                  </code>
+                                  <input
+                                    id="channel-color-border"
+                                    type="color"
+                                    value={
+                                      selectedChannelModuleConfig.ui.colorTheme
+                                        .border
+                                    }
+                                    onChange={(event) =>
+                                      updateSelectedChannelModuleConfig(
+                                        (prev) => ({
+                                          ...prev,
+                                          ui: {
+                                            ...prev.ui,
+                                            colorTheme: {
+                                              ...prev.ui.colorTheme,
+                                              border:
+                                                event.target.value.toUpperCase(),
+                                            },
+                                          },
+                                        }),
+                                      )
+                                    }
+                                    className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  updateSelectedChannelModuleConfig((prev) => ({
+                                    ...prev,
+                                    ui: {
+                                      ...prev.ui,
+                                      colorTheme:
+                                        defaultChannelModuleConfig().ui
+                                          .colorTheme,
+                                    },
+                                  }))
+                                }
+                              >
+                                Reset colors
+                              </Button>
+                            </div>
+                          </div>
+                        </section>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+
+                  {/* ── Main content area ── */}
+                  {centerPane === "chat" ? (
+                    <MessageList
+                      messages={messages}
+                      linkPreviews={linkPreviews}
+                      onOpenThread={(id) => void onOpenThread(id)}
+                      onOpenLightbox={onOpenLightbox}
+                      showAvatars={selectedChannelModuleConfig.ui.showAvatars}
+                      density={selectedChannelModuleConfig.ui.messageDensity}
+                      cornerRadiusPx={
+                        selectedChannelModuleConfig.ui.cornerRadiusPx
+                      }
+                      borderWidthPx={
+                        selectedChannelModuleConfig.ui.borderWidthPx
+                      }
+                      enableLinkPreviews={
+                        selectedChannelModuleConfig.modules.linkPreviews
+                      }
+                      enableMusicEmbeds={
+                        selectedChannelModuleConfig.modules.musicEmbeds
+                      }
+                      enableThreads={
+                        selectedChannelModuleConfig.modules.threads
+                      }
+                      onBottomStateChange={(atBottom) => {
+                        void onMessageListBottomStateChange(atBottom);
+                      }}
+                    />
+                  ) : null}
+
+                  {/* ── Composer ── */}
+                  {centerPane === "chat" && (
+                    <form
+                      autoComplete="off"
+                      className="flex items-end gap-2 px-3 py-2.5 border-t border-border shrink-0"
+                      onSubmit={onSendMessage}
+                    >
+                      <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                        {pendingMedia.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {pendingMedia.map((media) => (
+                              <span
+                                key={media.id}
+                                className="text-[11px] px-2 py-0.5 rounded-full border border-border bg-muted text-muted-foreground"
+                              >
+                                {media.original_name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         <Input
-                          type="number"
-                          min="0"
-                          value={channelSnoozeHours}
-                          onChange={(event) =>
-                            setChannelSnoozeHours(event.target.value)
-                          }
-                          className="h-8"
+                          placeholder="Write a message…"
+                          value={composer}
+                          onChange={(event) => setComposer(event.target.value)}
+                          className="h-9"
                         />
-                      </label>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        onChange={onUploadFile}
+                        disabled={!selectedChannelId || busy}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={!selectedChannelId || busy}
+                      >
+                        <Paperclip className="w-4 h-4" />
+                      </Button>
                       <Button
                         type="submit"
                         size="sm"
-                        disabled={!selectedChannelId}
+                        disabled={
+                          !selectedChannelId ||
+                          busy ||
+                          (composer.trim().length === 0 &&
+                            pendingMedia.length === 0)
+                        }
+                        className="shrink-0"
                       >
-                        Save
+                        Send
                       </Button>
                     </form>
-                    <section className="px-3 py-3 border-t border-border/70 bg-muted/40 flex flex-col gap-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <h3 className="text-xs font-semibold m-0">
-                            Channel Module Config
-                          </h3>
-                          <p className="text-[11px] text-muted-foreground m-0.5">
-                            Per-channel module behavior with JSON import/export.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={onDownloadChannelModuleConfig}
-                            disabled={!selectedChannelId}
-                          >
-                            Download
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              channelConfigUploadRef.current?.click()
-                            }
-                            disabled={!selectedChannelId}
-                          >
-                            Upload
-                          </Button>
-                          <input
-                            ref={channelConfigUploadRef}
-                            type="file"
-                            accept="application/json,.json"
-                            className="hidden"
-                            onChange={(event) => {
-                              void onUploadChannelModuleConfigFile(event);
-                            }}
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="mod-dice"
-                            checked={selectedChannelModuleConfig.modules.dice}
-                            onCheckedChange={(checked) =>
-                              updateSelectedChannelModuleConfig((prev) => ({
-                                ...prev,
-                                modules: { ...prev.modules, dice: !!checked },
-                              }))
-                            }
-                          />
-                          <Label htmlFor="mod-dice">Dice module</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="mod-surveys"
-                            checked={selectedChannelModuleConfig.modules.surveys}
-                            onCheckedChange={(checked) =>
-                              updateSelectedChannelModuleConfig((prev) => ({
-                                ...prev,
-                                modules: { ...prev.modules, surveys: !!checked },
-                              }))
-                            }
-                          />
-                          <Label htmlFor="mod-surveys">Survey module</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="mod-music"
-                            checked={selectedChannelModuleConfig.modules.musicEmbeds}
-                            onCheckedChange={(checked) =>
-                              updateSelectedChannelModuleConfig((prev) => ({
-                                ...prev,
-                                modules: { ...prev.modules, musicEmbeds: !!checked },
-                              }))
-                            }
-                          />
-                          <Label htmlFor="mod-music">Music embeds</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="mod-links"
-                            checked={selectedChannelModuleConfig.modules.linkPreviews}
-                            onCheckedChange={(checked) =>
-                              updateSelectedChannelModuleConfig((prev) => ({
-                                ...prev,
-                                modules: { ...prev.modules, linkPreviews: !!checked },
-                              }))
-                            }
-                          />
-                          <Label htmlFor="mod-links">Link previews</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="mod-threads"
-                            checked={selectedChannelModuleConfig.modules.threads}
-                            onCheckedChange={(checked) =>
-                              updateSelectedChannelModuleConfig((prev) => ({
-                                ...prev,
-                                modules: { ...prev.modules, threads: !!checked },
-                              }))
-                            }
-                          />
-                          <Label htmlFor="mod-threads">Thread replies</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="mod-automark"
-                            checked={selectedChannelModuleConfig.notifications.autoMarkReadAtBottom}
-                            onCheckedChange={(checked) =>
-                              updateSelectedChannelModuleConfig((prev) => ({
-                                ...prev,
-                                notifications: { ...prev.notifications, autoMarkReadAtBottom: !!checked },
-                              }))
-                            }
-                          />
-                          <Label htmlFor="mod-automark">Auto-mark read at bottom</Label>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="mod-avatars"
-                            checked={selectedChannelModuleConfig.ui.showAvatars}
-                            onCheckedChange={(checked) =>
-                              updateSelectedChannelModuleConfig((prev) => ({
-                                ...prev,
-                                ui: { ...prev.ui, showAvatars: !!checked },
-                              }))
-                            }
-                          />
-                          <Label htmlFor="mod-avatars">Show avatars</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="mod-badge"
-                            checked={selectedChannelModuleConfig.notifications.showUnreadBadge}
-                            onCheckedChange={(checked) =>
-                              updateSelectedChannelModuleConfig((prev) => ({
-                                ...prev,
-                                notifications: { ...prev.notifications, showUnreadBadge: !!checked },
-                              }))
-                            }
-                          />
-                          <Label htmlFor="mod-badge">Show unread badge</Label>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs max-w-[280px]">
-                        Message density
-                        <Select
-                          value={selectedChannelModuleConfig.ui.messageDensity}
-                          onValueChange={(value) =>
-                            updateSelectedChannelModuleConfig((prev) => ({
-                              ...prev,
-                              ui: {
-                                ...prev.ui,
-                                messageDensity:
-                                  value === "compact" ? "compact" : "comfortable",
-                              },
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="h-7 text-xs w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="comfortable">Comfortable</SelectItem>
-                            <SelectItem value="compact">Compact</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 max-w-[420px]">
-                        <label className="flex items-center gap-2 text-xs">
-                          Corner radius
-                          <Input
-                            type="number"
-                            min="0"
-                            max="96"
-                            value={
-                              selectedChannelModuleConfig.ui.cornerRadiusPx
-                            }
-                            onChange={(event) =>
-                              updateSelectedChannelModuleConfig((prev) => ({
-                                ...prev,
-                                ui: {
-                                  ...prev.ui,
-                                  cornerRadiusPx: Math.min(
-                                    96,
-                                    Math.max(
-                                      0,
-                                      Number(event.target.value || "0"),
-                                    ),
-                                  ),
-                                },
-                              }))
-                            }
-                            className="h-7 w-20"
-                          />
-                        </label>
-                        <label className="flex items-center gap-2 text-xs">
-                          Border thickness
-                          <Input
-                            type="number"
-                            min="0"
-                            max="24"
-                            value={selectedChannelModuleConfig.ui.borderWidthPx}
-                            onChange={(event) =>
-                              updateSelectedChannelModuleConfig((prev) => ({
-                                ...prev,
-                                ui: {
-                                  ...prev.ui,
-                                  borderWidthPx: Math.min(
-                                    24,
-                                    Math.max(
-                                      0,
-                                      Number(event.target.value || "0"),
-                                    ),
-                                  ),
-                                },
-                              }))
-                            }
-                            className="h-7 w-20"
-                          />
-                        </label>
-                      </div>
-                      <div className="pt-2 border-t border-border/60 flex flex-col gap-2">
-                        <div className="flex items-center gap-2 text-xs font-medium">
-                          <Checkbox
-                            id="mod-color-theme"
-                            checked={selectedChannelModuleConfig.ui.colorTheme.enabled}
-                            onCheckedChange={(checked) =>
-                              updateSelectedChannelModuleConfig((prev) => ({
-                                ...prev,
-                                ui: {
-                                  ...prev.ui,
-                                  colorTheme: {
-                                    ...prev.ui.colorTheme,
-                                    enabled: !!checked,
-                                  },
-                                },
-                              }))
-                            }
-                          />
-                          <Label htmlFor="mod-color-theme">Enable channel color theme</Label>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 max-w-[560px]">
-                          <div className="flex items-center justify-between gap-2 text-xs">
-                            <label htmlFor="channel-color-background-1">
-                              Background 1
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
-                                {
-                                  selectedChannelModuleConfig.ui.colorTheme
-                                    .backgroundBase
-                                }
-                              </code>
-                              <input
-                                id="channel-color-background-1"
-                                type="color"
-                                value={
-                                  selectedChannelModuleConfig.ui.colorTheme
-                                    .backgroundBase
-                                }
-                                onChange={(event) =>
-                                  updateSelectedChannelModuleConfig((prev) => ({
-                                    ...prev,
-                                    ui: {
-                                      ...prev.ui,
-                                      colorTheme: {
-                                        ...prev.ui.colorTheme,
-                                        backgroundBase:
-                                          event.target.value.toUpperCase(),
-                                      },
-                                    },
-                                  }))
-                                }
-                                className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between gap-2 text-xs">
-                            <label htmlFor="channel-color-background-2">
-                              Background 2
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
-                                {
-                                  selectedChannelModuleConfig.ui.colorTheme
-                                    .backgroundAlt
-                                }
-                              </code>
-                              <input
-                                id="channel-color-background-2"
-                                type="color"
-                                value={
-                                  selectedChannelModuleConfig.ui.colorTheme
-                                    .backgroundAlt
-                                }
-                                onChange={(event) =>
-                                  updateSelectedChannelModuleConfig((prev) => ({
-                                    ...prev,
-                                    ui: {
-                                      ...prev.ui,
-                                      colorTheme: {
-                                        ...prev.ui.colorTheme,
-                                        backgroundAlt:
-                                          event.target.value.toUpperCase(),
-                                      },
-                                    },
-                                  }))
-                                }
-                                className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between gap-2 text-xs">
-                            <label htmlFor="channel-color-main">
-                              Main color
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
-                                {selectedChannelModuleConfig.ui.colorTheme.main}
-                              </code>
-                              <input
-                                id="channel-color-main"
-                                type="color"
-                                value={
-                                  selectedChannelModuleConfig.ui.colorTheme.main
-                                }
-                                onChange={(event) =>
-                                  updateSelectedChannelModuleConfig((prev) => ({
-                                    ...prev,
-                                    ui: {
-                                      ...prev.ui,
-                                      colorTheme: {
-                                        ...prev.ui.colorTheme,
-                                        main: event.target.value.toUpperCase(),
-                                      },
-                                    },
-                                  }))
-                                }
-                                className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between gap-2 text-xs">
-                            <label htmlFor="channel-color-highlight">
-                              Highlight
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
-                                {
-                                  selectedChannelModuleConfig.ui.colorTheme
-                                    .highlight
-                                }
-                              </code>
-                              <input
-                                id="channel-color-highlight"
-                                type="color"
-                                value={
-                                  selectedChannelModuleConfig.ui.colorTheme
-                                    .highlight
-                                }
-                                onChange={(event) =>
-                                  updateSelectedChannelModuleConfig((prev) => ({
-                                    ...prev,
-                                    ui: {
-                                      ...prev.ui,
-                                      colorTheme: {
-                                        ...prev.ui.colorTheme,
-                                        highlight:
-                                          event.target.value.toUpperCase(),
-                                      },
-                                    },
-                                  }))
-                                }
-                                className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between gap-2 text-xs">
-                            <label htmlFor="channel-color-text">Text</label>
-                            <div className="flex items-center gap-2">
-                              <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
-                                {selectedChannelModuleConfig.ui.colorTheme.text}
-                              </code>
-                              <input
-                                id="channel-color-text"
-                                type="color"
-                                value={
-                                  selectedChannelModuleConfig.ui.colorTheme.text
-                                }
-                                onChange={(event) =>
-                                  updateSelectedChannelModuleConfig((prev) => ({
-                                    ...prev,
-                                    ui: {
-                                      ...prev.ui,
-                                      colorTheme: {
-                                        ...prev.ui.colorTheme,
-                                        text: event.target.value.toUpperCase(),
-                                      },
-                                    },
-                                  }))
-                                }
-                                className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between gap-2 text-xs">
-                            <label htmlFor="channel-color-border">Border</label>
-                            <div className="flex items-center gap-2">
-                              <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
-                                {
-                                  selectedChannelModuleConfig.ui.colorTheme
-                                    .border
-                                }
-                              </code>
-                              <input
-                                id="channel-color-border"
-                                type="color"
-                                value={
-                                  selectedChannelModuleConfig.ui.colorTheme
-                                    .border
-                                }
-                                onChange={(event) =>
-                                  updateSelectedChannelModuleConfig((prev) => ({
-                                    ...prev,
-                                    ui: {
-                                      ...prev.ui,
-                                      colorTheme: {
-                                        ...prev.ui.colorTheme,
-                                        border:
-                                          event.target.value.toUpperCase(),
-                                      },
-                                    },
-                                  }))
-                                }
-                                className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        <div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              updateSelectedChannelModuleConfig((prev) => ({
-                                ...prev,
-                                ui: {
-                                  ...prev.ui,
-                                  colorTheme:
-                                    defaultChannelModuleConfig().ui.colorTheme,
-                                },
-                              }))
-                            }
-                          >
-                            Reset colors
-                          </Button>
-                        </div>
-                      </div>
-                    </section>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
-
-              {/* ── Main content area ── */}
-              {centerPane === "chat" ? (
-                <MessageList
-                  messages={messages}
-                  linkPreviews={linkPreviews}
-                  onOpenThread={(id) => void onOpenThread(id)}
-                  onOpenLightbox={onOpenLightbox}
-                  showAvatars={selectedChannelModuleConfig.ui.showAvatars}
-                  density={selectedChannelModuleConfig.ui.messageDensity}
-                  cornerRadiusPx={selectedChannelModuleConfig.ui.cornerRadiusPx}
-                  borderWidthPx={selectedChannelModuleConfig.ui.borderWidthPx}
-                  enableLinkPreviews={
-                    selectedChannelModuleConfig.modules.linkPreviews
-                  }
-                  enableMusicEmbeds={
-                    selectedChannelModuleConfig.modules.musicEmbeds
-                  }
-                  enableThreads={selectedChannelModuleConfig.modules.threads}
-                  onBottomStateChange={(atBottom) => {
-                    void onMessageListBottomStateChange(atBottom);
-                  }}
-                />
-              ) : null}
-
-              {/* ── Composer ── */}
-              {centerPane === "chat" && (
-                <form
-                  autoComplete="off"
-                  className="flex items-end gap-2 px-3 py-2.5 border-t border-border shrink-0"
-                  onSubmit={onSendMessage}
-                >
-                  <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                    {pendingMedia.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {pendingMedia.map((media) => (
-                          <span
-                            key={media.id}
-                            className="text-[11px] px-2 py-0.5 rounded-full border border-border bg-muted text-muted-foreground"
-                          >
-                            {media.original_name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <Input
-                      placeholder="Write a message…"
-                      value={composer}
-                      onChange={(event) => setComposer(event.target.value)}
-                      className="h-9"
-                    />
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    onChange={onUploadFile}
-                    disabled={!selectedChannelId || busy}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={!selectedChannelId || busy}
-                  >
-                    <Paperclip className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={
-                      !selectedChannelId ||
-                      busy ||
-                      (composer.trim().length === 0 &&
-                        pendingMedia.length === 0)
-                    }
-                    className="shrink-0"
-                  >
-                    Send
-                  </Button>
-                </form>
+                  )}
+                </>
               )}
             </section>
-            {threadOpen && (
+            {leftRailTab === "channels" && threadOpen && (
               <ThreadPanel
                 threadMessages={threadMessages}
                 threadComposer={threadComposer}
@@ -3128,94 +3294,18 @@ export function App() {
           </>
         )}
 
-        <Dialog
-          open={lightboxIndex !== null}
-          onOpenChange={(open) => {
-            if (!open) setLightboxIndex(null);
-          }}
-        >
-          <DialogContent className="max-w-4xl p-4 gap-3 bg-card">
-            {lightboxIndex !== null && galleryImages[lightboxIndex] && (
-              <>
-                {/* Header */}
-                <div className="flex items-start justify-between gap-4 shrink-0">
-                  <div>
-                    <strong className="text-sm font-semibold">
-                      {galleryImages[lightboxIndex].original_name}
-                    </strong>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {galleryImages[lightboxIndex].messageAuthor}
-                      {" · "}
-                      {new Date(
-                        galleryImages[lightboxIndex].messageCreatedAt,
-                      ).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Stage */}
-                <div className="flex items-center gap-2 min-h-0 flex-1">
-                  {galleryImages.length > 1 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      aria-label="Previous image"
-                      className="h-10 w-8 shrink-0 text-lg p-0"
-                      onClick={() =>
-                        setLightboxIndex((prev) =>
-                          prev === null
-                            ? prev
-                            : (prev - 1 + galleryImages.length) %
-                              galleryImages.length,
-                        )
-                      }
-                    >
-                      ‹
-                    </Button>
-                  ) : (
-                    <span className="w-8 shrink-0" />
-                  )}
-
-                  <img
-                    src={galleryImages[lightboxIndex].public_url}
-                    alt={galleryImages[lightboxIndex].original_name}
-                    className="flex-1 min-w-0 max-h-[calc(100vh-14rem)] w-full object-contain rounded-lg border border-border bg-muted"
-                  />
-
-                  {galleryImages.length > 1 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      aria-label="Next image"
-                      className="h-10 w-8 shrink-0 text-lg p-0"
-                      onClick={() =>
-                        setLightboxIndex((prev) =>
-                          prev === null
-                            ? prev
-                            : (prev + 1) % galleryImages.length,
-                        )
-                      }
-                    >
-                      ›
-                    </Button>
-                  ) : (
-                    <span className="w-8 shrink-0" />
-                  )}
-                </div>
-
-                {/* Index */}
-                {galleryImages.length > 1 && (
-                  <p className="text-center text-xs text-muted-foreground shrink-0">
-                    {lightboxIndex + 1} / {galleryImages.length}
-                  </p>
-                )}
-              </>
-            )}
-          </DialogContent>
-        </Dialog>
-
+        <Lightbox
+          images={galleryImages.map((img) => ({
+            id: img.id,
+            src: img.public_url,
+            title: img.original_name,
+            postedBy: img.messageAuthor,
+            date: img.messageCreatedAt,
+          }))}
+          activeId={lightboxActiveId}
+          onClose={() => setLightboxActiveId(null)}
+          onNavigate={(id) => setLightboxActiveId(id)}
+        />
       </main>
     </>
   );
