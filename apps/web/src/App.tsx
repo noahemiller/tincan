@@ -14,6 +14,7 @@ import { SettingsLayout, type SettingsView } from "./components/SettingsLayout";
 import { LibraryLayout } from "./components/LibraryLayout";
 import type { ViewFilter } from "./components/LibraryWorkspace";
 import { MessageList } from "./components/MessageList";
+import { MusicPlaylist } from "./components/MusicPlaylist";
 import { Rail, type RailTab } from "./components/Rail";
 import { SidebarPanel } from "./components/SidebarPanel";
 import { ThreadPanel } from "./components/ThreadPanel";
@@ -31,7 +32,7 @@ import {
   SelectValue,
 } from "./components/ui/select";
 import { extractUrls } from "./lib/chat";
-import { Paperclip, Settings2, PanelLeft } from "lucide-react";
+import { Music, Paperclip, PanelLeft, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "./api";
@@ -460,6 +461,7 @@ export function App() {
   >("passive");
   const [channelSnoozeHours, setChannelSnoozeHours] = useState("0");
   const [channelSettingsOpen, setChannelSettingsOpen] = useState(false);
+  const [chatView, setChatView] = useState<"chat" | "playlist">("chat");
   const [centerPane, setCenterPane] = useState<"chat" | "library">("chat");
   const [settingsView, setSettingsView] = useState<SettingsView>("profile");
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
@@ -985,6 +987,10 @@ export function App() {
         [selectedChannelId]: defaultChannelModuleConfig(),
       };
     });
+  }, [selectedChannelId]);
+
+  useEffect(() => {
+    setChatView("chat");
   }, [selectedChannelId]);
 
   useEffect(() => {
@@ -2574,18 +2580,45 @@ export function App() {
                       </h2>
                     </div>
                     {centerPane === "chat" && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                        aria-label="Channel settings"
-                        title="Channel alert settings"
-                        disabled={!selectedChannelId}
-                        onClick={() => setChannelSettingsOpen((prev) => !prev)}
-                      >
-                        <Settings2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1.5">
+                        {selectedChannelModuleConfig.modules.musicEmbeds && (
+                          <div className="flex items-center gap-1 border border-border rounded-md p-0.5">
+                            <Button
+                              type="button"
+                              variant={chatView === "chat" ? "secondary" : "ghost"}
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => setChatView("chat")}
+                            >
+                              Chat
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={
+                                chatView === "playlist" ? "secondary" : "ghost"
+                              }
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => setChatView("playlist")}
+                            >
+                              <Music className="w-3 h-3 mr-1" />
+                              Playlist
+                            </Button>
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          aria-label="Channel settings"
+                          title="Channel alert settings"
+                          disabled={!selectedChannelId}
+                          onClick={() => setChannelSettingsOpen((prev) => !prev)}
+                        >
+                          <Settings2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     )}
                   </div>
 
@@ -3194,7 +3227,14 @@ export function App() {
                   )}
 
                   {/* ── Main content area ── */}
-                  {centerPane === "chat" ? (
+                  {centerPane === "chat" &&
+                  chatView === "playlist" &&
+                  selectedChannelModuleConfig.modules.musicEmbeds ? (
+                    <MusicPlaylist
+                      messages={messages}
+                      linkPreviews={linkPreviews}
+                    />
+                  ) : centerPane === "chat" ? (
                     <MessageList
                       messages={messages}
                       linkPreviews={linkPreviews}
@@ -3224,7 +3264,9 @@ export function App() {
                   ) : null}
 
                   {/* ── Composer ── */}
-                  {centerPane === "chat" && (
+                  {centerPane === "chat" &&
+                    (chatView === "chat" ||
+                      !selectedChannelModuleConfig.modules.musicEmbeds) && (
                     <form
                       autoComplete="off"
                       className="flex items-end gap-2 px-3 py-2.5 border-t border-border shrink-0"
