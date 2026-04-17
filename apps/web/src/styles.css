@@ -1,6 +1,16 @@
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap");
 @import "tw-animate-css";
 
+@keyframes lightbox-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes lightbox-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -111,10 +121,10 @@
   padding: 1rem;
 }
 
-/* App chrome: rail | sidebar | main | thread */
+/* App chrome: rail | sidebar | main [| thread] */
 .app-shell {
   display: grid;
-  grid-template-columns: 56px 240px 1fr 256px;
+  grid-template-columns: 56px 240px 1fr;
   gap: 0;
   height: 100vh;
   overflow: hidden;
@@ -126,53 +136,6 @@
   }
 }
 
-@media (max-width: 860px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-
-  .sidebar.rail,
-  .sidebar.panel {
-    display: none;
-  }
-
-  .chat {
-    min-height: 100vh;
-  }
-}
-
-/* ─── Accordion (channel settings) ──────────────────────────────────────── */
-.channel-settings-accordion {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  border-bottom: 1px solid transparent;
-  transition:
-    grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 200ms ease,
-    border-color 200ms ease,
-    visibility 0s linear 220ms;
-}
-
-.channel-settings-content {
-  overflow: hidden;
-}
-
-.channel-settings-accordion.open {
-  grid-template-rows: 1fr;
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  border-bottom-color: var(--border);
-  transition:
-    grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 200ms ease,
-    border-color 200ms ease,
-    visibility 0s linear 0s;
-}
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }

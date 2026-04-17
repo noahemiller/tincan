@@ -3,35 +3,21 @@ import type { RailTab } from '@/components/Rail';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Server  = { id: string; name: string; slug: string; role?: 'owner' | 'admin' | 'member' };
 type Channel = { id: string; name: string; slug: string; notification_mode: 'hidden' | 'passive' | 'active'; snoozed_until?: string | null };
 type Member  = { user_id: string; name: string; handle: string; role: 'owner' | 'admin' | 'member' };
-type Invite  = { id: string; code: string; role_to_grant: 'admin' | 'member'; uses_count: number };
 
 type SidebarPanelProps = {
   activeTab: RailTab;
+  members: Member[];
   servers: Server[];
+  selectedServer: Server | null;
   selectedServerId: string;
   onSelectServer: (id: string) => void;
-  serverName: string;
-  setServerName: (v: string) => void;
-  onCreateServer: (e: FormEvent<HTMLFormElement>) => void;
-  joinInviteCode: string;
-  setJoinInviteCode: (v: string) => void;
-  onJoinInvite: (e: FormEvent<HTMLFormElement>) => void;
-  inviteRoleToGrant: 'admin' | 'member';
-  setInviteRoleToGrant: (v: 'admin' | 'member') => void;
-  inviteMaxUses: string;
-  setInviteMaxUses: (v: string) => void;
-  inviteExpiresHours: string;
-  setInviteExpiresHours: (v: string) => void;
-  onCreateInvite: (e: FormEvent<HTMLFormElement>) => void;
-  invites: Invite[];
-  members: Member[];
-  selectedServer: Server | null;
-  channels: Channel[];
   selectedChannelId: string;
   onSelectChannel: (id: string) => void;
   unreadCountByChannel: Map<string, number>;
@@ -57,27 +43,13 @@ const navItem = (active: boolean) =>
 /* Small code/tag chips */
 const chip = 'text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border font-mono';
 
-export function SidebarPanel({
+function SidebarContent({
   activeTab,
+  members,
   servers,
+  selectedServer,
   selectedServerId,
   onSelectServer,
-  serverName,
-  setServerName,
-  onCreateServer,
-  joinInviteCode,
-  setJoinInviteCode,
-  onJoinInvite,
-  inviteRoleToGrant,
-  setInviteRoleToGrant,
-  inviteMaxUses,
-  setInviteMaxUses,
-  inviteExpiresHours,
-  setInviteExpiresHours,
-  onCreateInvite,
-  invites,
-  members,
-  selectedServer,
   selectedChannelId,
   onSelectChannel,
   unreadCountByChannel,
@@ -90,87 +62,7 @@ export function SidebarPanel({
   onCreateChannel,
 }: SidebarPanelProps) {
   return (
-    <aside className="sidebar panel flex flex-col gap-3 px-2 py-3 border-r border-border bg-card h-full overflow-y-auto">
-
-      {/* ── Servers ────────────────────────────────────────────────────── */}
-      {activeTab === 'servers' && (
-        <>
-          <header>
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2.5 mb-1">
-              Servers
-            </h2>
-          </header>
-
-          <nav className="flex flex-col gap-0.5">
-            {servers.map((server) => (
-              <button
-                key={server.id}
-                type="button"
-                className={navItem(server.id === selectedServerId)}
-                onClick={() => void onSelectServer(server.id)}
-              >
-                {server.name}
-              </button>
-            ))}
-          </nav>
-
-          <div className="border-t border-border pt-3 flex flex-col gap-2">
-            <p className="text-xs text-muted-foreground px-2.5 font-medium">New server</p>
-            <form autoComplete="off" onSubmit={onCreateServer} className="flex flex-col gap-1.5">
-              <Input placeholder="Server name" value={serverName} onChange={(e) => setServerName(e.target.value)} />
-              <Button type="submit" size="sm">Create</Button>
-            </form>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <p className="text-xs text-muted-foreground px-2.5 font-medium">Join with invite</p>
-            <form autoComplete="off" onSubmit={onJoinInvite} className="flex flex-col gap-1.5">
-              <Input placeholder="Invite code" value={joinInviteCode} onChange={(e) => setJoinInviteCode(e.target.value)} />
-              <Button type="submit" size="sm" variant="secondary">Join</Button>
-            </form>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <p className="text-xs text-muted-foreground px-2.5 font-medium">Create invite</p>
-            <form autoComplete="off" onSubmit={onCreateInvite} className="flex flex-col gap-1.5">
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                value={inviteRoleToGrant}
-                onChange={(e) => setInviteRoleToGrant(e.target.value as 'admin' | 'member')}
-              >
-                <option value="member">Grant member</option>
-                <option value="admin">Grant admin</option>
-              </select>
-              <Input placeholder="Max uses (optional)" type="number" min="1" value={inviteMaxUses} onChange={(e) => setInviteMaxUses(e.target.value)} />
-              <Input placeholder="Expires in hours" type="number" min="1" value={inviteExpiresHours} onChange={(e) => setInviteExpiresHours(e.target.value)} />
-              <Button type="submit" size="sm" variant="secondary" disabled={!selectedServerId}>
-                Create invite
-              </Button>
-            </form>
-          </div>
-
-          {invites.length > 0 && (
-            <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
-              {invites.slice(0, 5).map((invite) => (
-                <code key={invite.id} className={chip}>
-                  {invite.code} ({invite.role_to_grant}, {invite.uses_count})
-                </code>
-              ))}
-            </div>
-          )}
-
-          {members.length > 0 && (
-            <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
-              {members.slice(0, 6).map((member) => (
-                <span key={member.user_id} className={chip}>
-                  {member.name} ({member.role})
-                </span>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
+    <>
       {/* ── DMs ───────────────────────────────────────────────────────── */}
       {activeTab === 'dms' && (
         <>
@@ -198,10 +90,34 @@ export function SidebarPanel({
       {/* ── Channels ──────────────────────────────────────────────────── */}
       {activeTab === 'channels' && (
         <>
-          <header className="flex flex-col gap-1">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2.5">
-              {selectedServer?.name ?? 'Channels'}
-            </h2>
+          <header className="flex flex-col gap-2">
+            {/* Server switcher */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between gap-2 rounded-md bg-accent/50 px-3 py-2 text-sm font-semibold hover:bg-accent transition-colors"
+                >
+                  <span className="truncate">{selectedServer?.name ?? 'Select server'}</span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-[200px]">
+                {servers.map((server) => (
+                  <DropdownMenuItem
+                    key={server.id}
+                    onSelect={() => onSelectServer(server.id)}
+                    className="flex items-center gap-2"
+                  >
+                    <Check
+                      className={cn('h-4 w-4 shrink-0', server.id === selectedServerId ? 'opacity-100' : 'opacity-0')}
+                    />
+                    <span className="truncate">{server.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <label className="flex items-center gap-2 px-2.5 text-xs text-muted-foreground cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -252,21 +168,14 @@ export function SidebarPanel({
           </div>
         </>
       )}
+    </>
+  );
+}
 
-      {/* ── Design system ─────────────────────────────────────────────── */}
-      {activeTab === 'design' && (
-        <>
-          <header>
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2.5 mb-1">
-              Design system
-            </h2>
-          </header>
-          <p className="text-xs text-muted-foreground px-2.5 m-0">
-            Reference for UI tokens and components. Preview light and dark themes from the rail.
-          </p>
-        </>
-      )}
-
+export function SidebarPanel(props: SidebarPanelProps) {
+  return (
+    <aside className="sidebar panel flex flex-col gap-3 px-2 py-3 border-r border-border bg-card h-full overflow-y-auto">
+      <SidebarContent {...props} />
     </aside>
   );
 }

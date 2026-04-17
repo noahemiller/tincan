@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/ThemeProvider";
-import { Paintbrush, Sun, Moon } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 
-export type RailTab = "servers" | "dms" | "channels" | "design";
+export type RailTab = "channels" | "dms" | "library" | "settings";
 
 type RailProps = {
   activeTab: RailTab;
@@ -12,13 +12,12 @@ type RailProps = {
 const TABS: {
   id: RailTab;
   label: string;
-  icon?: string;
-  Icon?: React.ComponentType<{ className?: string }>;
+  icon: string;
 }[] = [
-  { id: "channels", label: "Channels", icon: "/icon-channels.svg" },
-  { id: "dms", label: "Direct messages", icon: "/icon-dms.svg" },
-  { id: "servers", label: "Servers", icon: "/icon-servers.svg" },
-  { id: "design", label: "Design system", Icon: Paintbrush },
+  { id: "channels", label: "Channels", icon: "/tincan-megaphone.svg" },
+  { id: "dms", label: "DMs", icon: "/tincan-two-cans.svg" },
+  { id: "library", label: "Library", icon: "/tincan-can.svg" },
+  { id: "settings", label: "Settings", icon: "/tincan-server.svg" },
 ];
 
 export function Rail({ activeTab, onTabChange }: RailProps) {
@@ -27,18 +26,9 @@ export function Rail({ activeTab, onTabChange }: RailProps) {
 
   return (
     <aside className="flex flex-col items-center px-1.5 py-2 border-r border-border bg-card h-full">
-      {/* Brand */}
-      <div className="w-full px-0.5 pb-3 pt-1 shrink-0">
-        <img
-          src="/tincan-logo.svg"
-          alt="Tincan"
-          className="w-full h-8 object-contain"
-        />
-      </div>
-
       {/* Nav tabs */}
       <nav className="flex flex-col gap-1 w-full flex-1">
-        {TABS.map(({ id, label, icon, Icon }) => (
+        {TABS.map(({ id, label, icon }) => (
           <button
             key={id}
             type="button"
@@ -52,11 +42,12 @@ export function Rail({ activeTab, onTabChange }: RailProps) {
                 : "text-muted-foreground",
             )}
           >
-            {icon ? (
-              <img src={icon} alt="" className="w-[68%] h-[68%] object-contain" />
-            ) : Icon ? (
-              <Icon className="w-4 h-4" />
-            ) : null}
+            <img
+              src={icon}
+              alt={label}
+              className="object-contain hover:rotate-180 hover:scale-150 transition-transform duration-200"
+              onError={(e) => console.error("Failed to load icon:", icon, e)}
+            />
           </button>
         ))}
       </nav>
