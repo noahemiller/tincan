@@ -54,7 +54,7 @@ function Accordion({
   );
 }
 
-export function ThreadPanel({
+function ThreadContent({
   threadMessages,
   threadComposer,
   setThreadComposer,
@@ -64,9 +64,7 @@ export function ThreadPanel({
   busy,
 }: ThreadPanelProps) {
   return (
-    <aside className="sidebar unread flex flex-col gap-1 py-2 border-l border-border bg-card h-full overflow-y-auto">
-
-      {/* ── Thread ──────────────────────────────────────────────────────── */}
+    <>
       {selectedThreadRootId && (
         <Accordion label="Thread" defaultOpen>
           <div className="flex justify-end mb-2">
@@ -114,6 +112,14 @@ export function ThreadPanel({
           </form>
         </Accordion>
       )}
+    </>
+  );
+}
+
+export function ThreadPanel(props: ThreadPanelProps) {
+  return (
+    <aside className="sidebar unread flex flex-col gap-1 py-2 border-l border-border bg-card h-full overflow-y-auto">
+      <ThreadContent {...props} />
     </aside>
   );
 }

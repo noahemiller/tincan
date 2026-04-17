@@ -3,6 +3,8 @@ import type { RailTab } from '@/components/Rail';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Server  = { id: string; name: string; slug: string; role?: 'owner' | 'admin' | 'member' };
@@ -12,7 +14,10 @@ type Member  = { user_id: string; name: string; handle: string; role: 'owner' | 
 type SidebarPanelProps = {
   activeTab: RailTab;
   members: Member[];
+  servers: Server[];
   selectedServer: Server | null;
+  selectedServerId: string;
+  onSelectServer: (id: string) => void;
   selectedChannelId: string;
   onSelectChannel: (id: string) => void;
   unreadCountByChannel: Map<string, number>;
@@ -38,10 +43,13 @@ const navItem = (active: boolean) =>
 /* Small code/tag chips */
 const chip = 'text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border font-mono';
 
-export function SidebarPanel({
+function SidebarContent({
   activeTab,
   members,
+  servers,
   selectedServer,
+  selectedServerId,
+  onSelectServer,
   selectedChannelId,
   onSelectChannel,
   unreadCountByChannel,
@@ -54,8 +62,7 @@ export function SidebarPanel({
   onCreateChannel,
 }: SidebarPanelProps) {
   return (
-    <aside className="sidebar panel flex flex-col gap-3 px-2 py-3 border-r border-border bg-card h-full overflow-y-auto">
-
+    <>
       {/* ── DMs ───────────────────────────────────────────────────────── */}
       {activeTab === 'dms' && (
         <>
@@ -83,10 +90,34 @@ export function SidebarPanel({
       {/* ── Channels ──────────────────────────────────────────────────── */}
       {activeTab === 'channels' && (
         <>
-          <header className="flex flex-col gap-1">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2.5">
-              {selectedServer?.name ?? 'Channels'}
-            </h2>
+          <header className="flex flex-col gap-2">
+            {/* Server switcher */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between gap-2 rounded-md bg-accent/50 px-3 py-2 text-sm font-semibold hover:bg-accent transition-colors"
+                >
+                  <span className="truncate">{selectedServer?.name ?? 'Select server'}</span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-[200px]">
+                {servers.map((server) => (
+                  <DropdownMenuItem
+                    key={server.id}
+                    onSelect={() => onSelectServer(server.id)}
+                    className="flex items-center gap-2"
+                  >
+                    <Check
+                      className={cn('h-4 w-4 shrink-0', server.id === selectedServerId ? 'opacity-100' : 'opacity-0')}
+                    />
+                    <span className="truncate">{server.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <label className="flex items-center gap-2 px-2.5 text-xs text-muted-foreground cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -137,7 +168,14 @@ export function SidebarPanel({
           </div>
         </>
       )}
+    </>
+  );
+}
 
+export function SidebarPanel(props: SidebarPanelProps) {
+  return (
+    <aside className="sidebar panel flex flex-col gap-3 px-2 py-3 border-r border-border bg-card h-full overflow-y-auto">
+      <SidebarContent {...props} />
     </aside>
   );
 }

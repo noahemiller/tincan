@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/ThemeProvider";
-import { Sun, Moon, RadioTower, Phone, Library, Settings2 } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 
 export type RailTab = "channels" | "dms" | "library" | "settings";
 
@@ -12,12 +12,12 @@ type RailProps = {
 const TABS: {
   id: RailTab;
   label: string;
-  Icon: React.ComponentType<{ className?: string }>;
+  icon: string;
 }[] = [
-  { id: "channels", label: "Channels", Icon: RadioTower },
-  { id: "dms", label: "Direct messages", Icon: Phone },
-  { id: "library", label: "Library", Icon: Library },
-  { id: "settings", label: "Settings", Icon: Settings2 },
+  { id: "channels", label: "Channels", icon: "/tincan-megaphone.svg" },
+  { id: "dms", label: "DMs", icon: "/tincan-two-cans.svg" },
+  { id: "library", label: "Library", icon: "/tincan-server.svg" },
+  { id: "settings", label: "Settings", icon: "/tincan-server.svg" },
 ];
 
 export function Rail({ activeTab, onTabChange }: RailProps) {
@@ -37,7 +37,7 @@ export function Rail({ activeTab, onTabChange }: RailProps) {
 
       {/* Nav tabs */}
       <nav className="flex flex-col gap-1 w-full flex-1">
-        {TABS.map(({ id, label, Icon }) => (
+        {TABS.map(({ id, label, icon }) => (
           <button
             key={id}
             type="button"
@@ -51,7 +51,12 @@ export function Rail({ activeTab, onTabChange }: RailProps) {
                 : "text-muted-foreground",
             )}
           >
-            <Icon className="w-4 h-4" />
+            <img
+              src={icon}
+              alt={label}
+              className="object-contain hover:rotate-180 hover:scale-150 transition-transform duration-200"
+              onError={(e) => console.error("Failed to load icon:", icon, e)}
+            />
           </button>
         ))}
       </nav>

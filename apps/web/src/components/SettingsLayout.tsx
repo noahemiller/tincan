@@ -216,59 +216,71 @@ export function SettingsLayout({
   onCreateUserCommand,
   onCreateServerCommand,
 }: SettingsLayoutProps) {
+  const asideContent = (
+    <>
+      <div className="rounded-lg border border-border bg-background p-3 flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <Avatar className="h-10 w-10 shrink-0">
+            <AvatarImage
+              src={user.avatar_thumb_url ?? undefined}
+              alt={user.name}
+            />
+            <AvatarFallback className="text-xs font-semibold">
+              {initials(user.name)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold m-0 truncate">{user.name}</p>
+            <p className="text-xs text-muted-foreground m-0 truncate">
+              @{user.handle}
+            </p>
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="justify-start text-destructive hover:text-destructive"
+          onClick={onLogout}
+        >
+          Log out
+        </Button>
+      </div>
+      <div className="my-4 h-px bg-border" />
+      <nav className="flex flex-col gap-1">
+        {settingsNav.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onViewChange(id)}
+            className={cn(
+              "w-full rounded-md px-2.5 py-2 text-sm flex items-center gap-2 transition-colors",
+              "hover:bg-accent hover:text-accent-foreground",
+              activeView === id
+                ? "bg-accent text-accent-foreground ring-1 ring-border"
+                : "text-muted-foreground",
+            )}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
+    </>
+  );
+
   return (
     <section className="h-full min-h-0 grid grid-cols-[240px_1fr] overflow-hidden">
-      <aside className="h-full min-h-0 self-stretch border-r border-border bg-card px-3 py-4 overflow-y-auto">
-        <div className="rounded-lg border border-border bg-background p-3 flex flex-col gap-3">
-          <div className="flex items-center gap-2.5">
-            <Avatar className="h-10 w-10 shrink-0">
-              <AvatarImage
-                src={user.avatar_thumb_url ?? undefined}
-                alt={user.name}
-              />
-              <AvatarFallback className="text-xs font-semibold">
-                {initials(user.name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold m-0 truncate">{user.name}</p>
-              <p className="text-xs text-muted-foreground m-0 truncate">
-                @{user.handle}
-              </p>
-            </div>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="justify-start text-destructive hover:text-destructive"
-            onClick={onLogout}
-          >
-            Log out
-          </Button>
-        </div>
-        <div className="my-4 h-px bg-border" />
-        <nav className="flex flex-col gap-1">
-          {settingsNav.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onViewChange(id)}
-              className={cn(
-                "w-full rounded-md px-2.5 py-2 text-sm flex items-center gap-2 transition-colors",
-                "hover:bg-accent hover:text-accent-foreground",
-                activeView === id
-                  ? "bg-accent text-accent-foreground ring-1 ring-border"
-                  : "text-muted-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span>{label}</span>
-            </button>
-          ))}
-        </nav>
+      <aside className="flex flex-col w-[240px] border-r border-border bg-card px-3 py-4 overflow-y-auto">
+        {asideContent}
       </aside>
-      <div className="overflow-y-auto">
+      <div className="flex flex-col overflow-hidden">
+        <header className="flex items-center gap-2 px-3 border-b border-border h-12 shrink-0">
+          <h1 className="text-sm font-semibold">
+            {settingsNav.find((n) => n.id === activeView)?.label ?? "Settings"}
+          </h1>
+        </header>
+        <div className="overflow-y-auto flex-1">
         {activeView === "design" ? (
           <DesignSystemPage />
         ) : (
@@ -836,6 +848,7 @@ export function SettingsLayout({
             ) : null}
           </div>
         )}
+        </div>
       </div>
     </section>
   );
