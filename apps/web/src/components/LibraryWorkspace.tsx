@@ -27,6 +27,10 @@ import {
   Video,
   Link,
   PanelLeft,
+  LayoutGrid,
+  List,
+  ExternalLink,
+  Snail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Lightbox } from "@/components/Lightbox";
@@ -75,7 +79,16 @@ export type LibraryItem = {
 
 type PosterFacet = { id: string; label: string };
 
-export type ViewFilter = "all" | "media" | "music" | "video" | "links";
+export type ViewFilter =
+  | "all"
+  | "media"
+  | "music"
+  | "video"
+  | "links"
+  | "hearted";
+
+type SortCol = "title" | "type" | "channel" | "date";
+type SortDir = "asc" | "desc";
 
 export type LibraryWorkspaceProps = {
   filteredLibraryItems: LibraryItem[];
@@ -104,6 +117,8 @@ export type LibraryWorkspaceProps = {
   setLibraryTilePrimaryId: React.Dispatch<React.SetStateAction<string | null>>;
   libraryTileMultiIds: string[];
   setLibraryTileMultiIds: React.Dispatch<React.SetStateAction<string[]>>;
+  libraryFavoritedIds: string[];
+  setLibraryFavoritedIds: React.Dispatch<React.SetStateAction<string[]>>;
 };
 
 export function LibraryWorkspace({
@@ -132,9 +147,15 @@ export function LibraryWorkspace({
   setLibraryTilePrimaryId: setSelectedItemId,
   libraryTileMultiIds,
   setLibraryTileMultiIds,
+  libraryFavoritedIds,
+  setLibraryFavoritedIds,
 }: LibraryWorkspaceProps) {
   const viewFilteredItems = useMemo(() => {
     if (viewFilter === "all") return filteredLibraryItems;
+    if (viewFilter === "hearted") {
+      const fav = new Set(libraryFavoritedIds);
+      return filteredLibraryItems.filter((item) => fav.has(item.id));
+    }
     if (viewFilter === "media") {
       return filteredLibraryItems.filter(
         (item) =>
@@ -165,14 +186,62 @@ export function LibraryWorkspace({
       );
     }
     return filteredLibraryItems;
-  }, [filteredLibraryItems, viewFilter]);
+  }, [filteredLibraryItems, viewFilter, libraryFavoritedIds]);
   const columnCount = 7 - imageSize;
   const multiSelectedIds = useMemo(
     () => new Set(libraryTileMultiIds),
     [libraryTileMultiIds],
   );
+  const favoritedIdSet = useMemo(
+    () => new Set(libraryFavoritedIds),
+    [libraryFavoritedIds],
+  );
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [listSort, setListSort] = useState<SortCol>("date");
+  const [listSortDir, setListSortDir] = useState<SortDir>("desc");
+
+  const handleSort = (col: SortCol) => {
+    if (listSort === col) {
+      setListSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setListSort(col);
+      setListSortDir("asc");
+    }
+  };
+
+  const sortedListItems = useMemo(() => {
+    const items = [...viewFilteredItems];
+    items.sort((a, b) => {
+      if (listSort === "date") {
+        const dA = new Date(a.post_time || 0).getTime();
+        const dB = new Date(b.post_time || 0).getTime();
+        return listSortDir === "asc" ? dA - dB : dB - dA;
+      }
+      let valA = "";
+      let valB = "";
+      if (listSort === "title") {
+        valA = (a.title || a.preview_title || a.url || "").toLowerCase();
+        valB = (b.title || b.preview_title || b.url || "").toLowerCase();
+      } else if (listSort === "type") {
+        const typeLabel = (item: LibraryItem) =>
+          isVideoUrl(item.url ?? "") ? "video"
+          : isMusicUrl(item.url ?? "") ? "music"
+          : item.item_type === "media" ? "media"
+          : "link";
+        valA = typeLabel(a);
+        valB = typeLabel(b);
+      } else if (listSort === "channel") {
+        valA = a.channel_name ?? "";
+        valB = b.channel_name ?? "";
+      }
+      return listSortDir === "asc"
+        ? valA.localeCompare(valB)
+        : valB.localeCompare(valA);
+    });
+    return items;
+  }, [viewFilteredItems, listSort, listSortDir]);
+
   const [lightboxItemId, setLightboxItemId] = useState<string | null>(null);
-  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
   const lastClickedIdRef = useRef<string | null>(null);
 
   const handleTileClick = (item: LibraryItem, e: React.MouseEvent) => {
@@ -254,14 +323,21 @@ export function LibraryWorkspace({
         <div className="flex items-center gap-3">
           <ToggleGroup
             type="single"
-            value={viewFilter === "all" ? "" : viewFilter}
+            value={viewFilter}
             onValueChange={(val) =>
-              onViewFilterChange(
-                (val as "media" | "music" | "video" | "links") || "all",
-              )
+              onViewFilterChange((val as ViewFilter) || "all")
             }
             className="flex"
           >
+            <ToggleGroupItem
+              value="all"
+              aria-label="Everything"
+              size="sm"
+              className="h-12 w-12 flex flex-col items-center justify-center"
+            >
+              <Snail className="w-4 h-4" />
+              Everything
+            </ToggleGroupItem>
             <ToggleGroupItem
               value="media"
               aria-label="Images"
@@ -298,7 +374,44 @@ export function LibraryWorkspace({
               <Link className="w-4 h-4" />
               Links
             </ToggleGroupItem>
+            <ToggleGroupItem
+              value="hearted"
+              aria-label="Hearted items"
+              size="sm"
+              className="h-12 w-12 flex flex-col items-center justify-center"
+            >
+              <Heart className="w-4 h-4" />
+              Hearted
+            </ToggleGroupItem>
           </ToggleGroup>
+          <div className="flex items-center gap-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "h-7 w-7",
+                viewMode === "grid" && "bg-accent text-accent-foreground",
+              )}
+              onClick={() => setViewMode("grid")}
+              aria-label="Grid view"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "h-7 w-7",
+                viewMode === "list" && "bg-accent text-accent-foreground",
+              )}
+              onClick={() => setViewMode("list")}
+              aria-label="List view"
+            >
+              <List className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Select
@@ -347,6 +460,41 @@ export function LibraryWorkspace({
           <p className="text-xs text-muted-foreground px-3 py-3">
             No library items match this view.
           </p>
+        ) : viewMode === "list" ? (
+          <table className="w-full text-sm border-collapse">
+            <thead className="sticky top-0 z-10 bg-background border-b border-border">
+              <tr>
+                <SortableHeader col="title" label="Title" sortCol={listSort} sortDir={listSortDir} onSort={handleSort} className="w-full" />
+                <SortableHeader col="type" label="Type" sortCol={listSort} sortDir={listSortDir} onSort={handleSort} className="w-24" />
+                <SortableHeader col="channel" label="Channel" sortCol={listSort} sortDir={listSortDir} onSort={handleSort} className="w-32" />
+                <SortableHeader col="date" label="Date" sortCol={listSort} sortDir={listSortDir} onSort={handleSort} className="w-28" />
+                <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap w-12">Link</th>
+                <th className="w-8" />
+              </tr>
+            </thead>
+            <tbody>
+              {sortedListItems.slice(0, 100).map((item) => (
+                <LibraryTableRow
+                  key={item.id}
+                  item={item}
+                  selected={item.id === selectedItemId || multiSelectedIds.has(item.id)}
+                  favorited={favoritedIdSet.has(item.id)}
+                  thumbnail={getLibraryThumbnail(item)}
+                  decodeHtmlEntities={decodeHtmlEntities}
+                  onToggleFavorite={() =>
+                    setLibraryFavoritedIds((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(item.id)) next.delete(item.id);
+                      else next.add(item.id);
+                      return [...next];
+                    })
+                  }
+                  onMouseDown={(e) => { if (e.shiftKey) e.preventDefault(); }}
+                  onClick={(e) => handleTileClick(item, e)}
+                />
+              ))}
+            </tbody>
+          </table>
         ) : (
           <div
             className="grid gap-1 p-3"
@@ -358,7 +506,7 @@ export function LibraryWorkspace({
               const thumbnail = getLibraryThumbnail(item);
               const selected =
                 item.id === selectedItemId || multiSelectedIds.has(item.id);
-              const favorited = favoritedIds.has(item.id);
+              const favorited = favoritedIdSet.has(item.id);
               return (
                 <LibraryTile
                   key={item.id}
@@ -374,11 +522,11 @@ export function LibraryWorkspace({
                   onDragEnd={onLibraryItemDragEnd}
                   onDrop={(e) => void onLibraryItemDrop(e, item.id)}
                   onToggleFavorite={() =>
-                    setFavoritedIds((prev) => {
+                    setLibraryFavoritedIds((prev) => {
                       const next = new Set(prev);
                       if (next.has(item.id)) next.delete(item.id);
                       else next.add(item.id);
-                      return next;
+                      return [...next];
                     })
                   }
                   onMouseDown={(e) => {
@@ -533,5 +681,163 @@ function LibraryTile({
         </p>
       </div>
     </div>
+  );
+}
+
+function SortableHeader({
+  col,
+  label,
+  sortCol,
+  sortDir,
+  onSort,
+  className,
+}: {
+  col: SortCol;
+  label: string;
+  sortCol: SortCol;
+  sortDir: SortDir;
+  onSort: (col: SortCol) => void;
+  className?: string;
+}) {
+  const active = sortCol === col;
+  return (
+    <th
+      className={cn(
+        "px-3 py-2 text-left text-xs font-semibold text-muted-foreground",
+        "cursor-pointer select-none hover:text-foreground transition-colors",
+        "whitespace-nowrap",
+        className,
+      )}
+      onClick={() => onSort(col)}
+    >
+      <span className="flex items-center gap-1">
+        {label}
+        <span className="text-[10px] w-3 inline-block">
+          {active ? (sortDir === "asc" ? "↑" : "↓") : ""}
+        </span>
+      </span>
+    </th>
+  );
+}
+
+function LibraryTableRow({
+  item,
+  selected,
+  favorited,
+  thumbnail,
+  decodeHtmlEntities,
+  onToggleFavorite,
+  onMouseDown,
+  onClick,
+}: LibraryTileProps) {
+  const title = decodeHtmlEntities(
+    item.title || item.preview_title || item.url || "Untitled",
+  );
+  const isVideo =
+    isVideoUrl(item.url ?? "") || isVideoUrl(item.media_url ?? "");
+  const isMusic =
+    isMusicUrl(item.url ?? "") || isMusicUrl(item.media_url ?? "");
+  const typeLabel = isVideo
+    ? "Video"
+    : isMusic
+      ? "Music"
+      : item.item_type === "media"
+        ? "Media"
+        : "Link";
+  const TypeIcon = isVideo
+    ? Video
+    : isMusic
+      ? Music
+      : item.item_type === "media"
+        ? ImageIcon
+        : Link;
+
+  return (
+    <tr
+      className={cn(
+        "group cursor-pointer border-b border-border/50 last:border-0",
+        "hover:bg-accent/40 transition-colors",
+        selected && "bg-blue-500/10 ring-inset ring-1 ring-blue-500",
+      )}
+      onMouseDown={onMouseDown}
+      onClick={onClick}
+    >
+      <td className="px-3 py-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 shrink-0 rounded overflow-hidden bg-muted flex items-center justify-center">
+            {thumbnail ? (
+              <img
+                src={thumbnail}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <TypeIcon className="w-3.5 h-3.5 text-muted-foreground/50" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate leading-tight">
+              {title}
+            </p>
+            {item.posted_by_handle && (
+              <p className="text-[11px] text-muted-foreground truncate">
+                @{item.posted_by_handle}
+              </p>
+            )}
+          </div>
+        </div>
+      </td>
+      <td className="px-3 py-2 whitespace-nowrap">
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <TypeIcon className="w-3 h-3" />
+          {typeLabel}
+        </span>
+      </td>
+      <td className="px-3 py-2 whitespace-nowrap">
+        {item.channel_name && (
+          <span className="text-xs text-muted-foreground">
+            #{item.channel_name}
+          </span>
+        )}
+      </td>
+      <td className="px-3 py-2 whitespace-nowrap">
+        <span className="text-xs text-muted-foreground">
+          {item.post_time
+            ? new Date(item.post_time).toLocaleDateString()
+            : "—"}
+        </span>
+      </td>
+      <td className="px-3 py-2 whitespace-nowrap">
+        {(item.url || item.media_url) && (
+          <a
+            href={(item.url || item.media_url)!}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Open link"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        )}
+      </td>
+      <td className="px-2 py-2 text-right">
+        <Toggle
+          pressed={favorited}
+          onPressedChange={onToggleFavorite}
+          onClick={(e) => e.stopPropagation()}
+          size="sm"
+          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity border-0"
+          aria-label="Favorite"
+        >
+          <Heart
+            className={cn(
+              "w-3 h-3",
+              favorited ? "fill-red-500 text-red-500" : "text-muted-foreground",
+            )}
+          />
+        </Toggle>
+      </td>
+    </tr>
   );
 }

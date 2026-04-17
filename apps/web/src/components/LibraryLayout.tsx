@@ -202,7 +202,7 @@ function LibraryAside({
       <Separator />
 
       {/* COLLECTIONS */}
-      <Collapsible defaultOpen>
+      <Collapsible defaultOpen={false}>
         <SectionHeader>Collections</SectionHeader>
         <CollapsibleContent className="flex flex-col gap-2 px-2 pb-3">
           {/* Active collection picker */}
@@ -364,7 +364,7 @@ function LibraryAside({
       <Separator />
 
       {/* FILTER */}
-      <Collapsible defaultOpen>
+      <Collapsible defaultOpen={false}>
         <SectionHeader>Filter</SectionHeader>
         <CollapsibleContent className="flex flex-col gap-2 px-2 pb-3">
           {/* Type */}

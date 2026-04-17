@@ -524,6 +524,7 @@ export function App() {
     string | null
   >(null);
   const [libraryTileMultiIds, setLibraryTileMultiIds] = useState<string[]>([]);
+  const [libraryFavoritedIds, setLibraryFavoritedIds] = useState<string[]>([]);
   const [inviteRoleToGrant, setInviteRoleToGrant] = useState<
     "admin" | "member"
   >("member");
@@ -951,6 +952,7 @@ export function App() {
     setSelectedLibraryItemIds((prev) => prev.filter((id) => activeIds.has(id)));
     setLibraryTileMultiIds((prev) => prev.filter((id) => activeIds.has(id)));
     setLibraryTilePrimaryId((id) => (id && activeIds.has(id) ? id : null));
+    setLibraryFavoritedIds((prev) => prev.filter((id) => activeIds.has(id)));
   }, [activeLibraryItems]);
 
   useEffect(() => {
@@ -2029,9 +2031,10 @@ export function App() {
     setLibrarySort("newest");
     setLibraryViewFilter("all");
     setLibraryAsideOpen(true);
-    setLibraryImageSize(4);
+    setLibraryImageSize(5);
     setLibraryTilePrimaryId(null);
     setLibraryTileMultiIds([]);
+    setLibraryFavoritedIds([]);
     setEditingLibraryItem(null);
     setMetadataTitleDraft("");
     setMetadataDescriptionDraft("");
@@ -2339,6 +2342,8 @@ export function App() {
             setLibraryTilePrimaryId={setLibraryTilePrimaryId}
             libraryTileMultiIds={libraryTileMultiIds}
             setLibraryTileMultiIds={setLibraryTileMultiIds}
+            libraryFavoritedIds={libraryFavoritedIds}
+            setLibraryFavoritedIds={setLibraryFavoritedIds}
             filteredLibraryItems={filteredLibraryItems}
             selectedLibraryItemIds={selectedLibraryItemIds}
             setSelectedLibraryItemIds={setSelectedLibraryItemIds}
