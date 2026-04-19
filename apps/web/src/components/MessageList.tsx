@@ -581,20 +581,6 @@ export function MessageList({
                   <span>{reaction.count}</span>
                 </button>
               ))}
-              {onToggleReaction && (
-                <button
-                  type="button"
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-muted text-xs hover:bg-accent transition-colors"
-                  onClick={() =>
-                    setOpenEmojiPickerMessageId((prev) =>
-                      prev === message.id ? null : message.id,
-                    )
-                  }
-                  aria-label="Add reaction"
-                >
-                  🙂
-                </button>
-              )}
             </div>
             <div />
           </div>
