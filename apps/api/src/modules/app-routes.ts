@@ -42,6 +42,28 @@ const createMessageSchema = z
     }
   });
 
+const createDirectMessageSchema = z
+  .object({
+    body: z.string().max(4000)
+  })
+  .transform((payload) => ({ ...payload, body: payload.body.trim() }))
+  .superRefine((payload, context) => {
+    if (!payload.body) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Message body is required.'
+      });
+    }
+  });
+
+const createDmConversationSchema = z.object({
+  handle: z
+    .string()
+    .min(2)
+    .max(32)
+    .transform((value) => slugify(value).replace(/-/g, '_'))
+});
+
 const updateMessageSchema = z
   .object({
     body: z.string().max(4000)
@@ -191,6 +213,20 @@ async function loadChannel(channelId: string) {
   );
 
   return channelResult.rowCount ? channelResult.rows[0] : null;
+}
+
+async function requireDmParticipant(userId: string, conversationId: string) {
+  const result = await pool.query(
+    `
+    SELECT id
+    FROM dm_conversations
+    WHERE id = $1
+      AND ($2 = user_a_id OR $2 = user_b_id)
+    `,
+    [conversationId, userId]
+  );
+
+  return result.rowCount !== 0;
 }
 
 function extractUrls(text: string) {
@@ -806,6 +842,209 @@ export async function registerAppRoutes(app: FastifyInstance) {
       request.log.error(error);
       return reply.code(409).send({ error: 'Channel slug already exists for this server' });
     }
+  });
+
+  app.get('/api/dms', { preHandler: authGuard }, async (request) => {
+    const userId = request.authUser!.userId;
+
+    const result = await pool.query(
+      `
+      SELECT dc.id,
+             u.id AS other_user_id,
+             u.handle AS other_handle,
+             u.name AS other_name,
+             COALESCE(NULLIF(u.avatar_thumb_url, ''), NULLIF(u.avatar_url, '')) AS other_avatar_url,
+             COALESCE(unread.unread_count, 0)::int AS unread_count,
+             latest.last_message_at
+      FROM dm_conversations dc
+      JOIN users u ON u.id = CASE WHEN dc.user_a_id = $1 THEN dc.user_b_id ELSE dc.user_a_id END
+      LEFT JOIN dm_read_states drs
+        ON drs.conversation_id = dc.id
+       AND drs.user_id = $1
+      LEFT JOIN LATERAL (
+        SELECT MAX(dm.created_at) AS last_message_at
+        FROM dm_messages dm
+        WHERE dm.conversation_id = dc.id
+      ) latest ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT COUNT(dm.id)::int AS unread_count
+        FROM dm_messages dm
+        WHERE dm.conversation_id = dc.id
+          AND dm.author_user_id <> $1
+          AND (drs.last_read_at IS NULL OR dm.created_at > drs.last_read_at)
+      ) unread ON TRUE
+      WHERE dc.user_a_id = $1 OR dc.user_b_id = $1
+      ORDER BY latest.last_message_at DESC NULLS LAST, u.handle ASC
+      `,
+      [userId]
+    );
+
+    return { conversations: result.rows };
+  });
+
+  app.post('/api/dms', { preHandler: authGuard }, async (request, reply) => {
+    const parsed = createDmConversationSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const userId = request.authUser!.userId;
+    const targetHandle = parsed.data.handle.toLowerCase();
+
+    const targetResult = await pool.query(
+      `
+      SELECT id, handle, name, COALESCE(NULLIF(avatar_thumb_url, ''), NULLIF(avatar_url, '')) AS avatar_url
+      FROM users
+      WHERE LOWER(handle) = $1
+      `,
+      [targetHandle]
+    );
+
+    if (targetResult.rowCount === 0) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+
+    const otherUser = targetResult.rows[0];
+    if (otherUser.id === userId) {
+      return reply.code(400).send({ error: 'You cannot DM yourself' });
+    }
+
+    const [userAId, userBId] =
+      userId < (otherUser.id as string)
+        ? [userId, otherUser.id as string]
+        : [otherUser.id as string, userId];
+
+    const created = await pool.query(
+      `
+      INSERT INTO dm_conversations (user_a_id, user_b_id, created_by)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (user_a_id, user_b_id) DO NOTHING
+      RETURNING id
+      `,
+      [userAId, userBId, userId]
+    );
+
+    let conversationId = created.rows[0]?.id as string | undefined;
+    if (!conversationId) {
+      const existing = await pool.query(
+        `
+        SELECT id
+        FROM dm_conversations
+        WHERE user_a_id = $1 AND user_b_id = $2
+        `,
+        [userAId, userBId]
+      );
+      conversationId = existing.rows[0]?.id as string | undefined;
+    }
+
+    if (!conversationId) {
+      return reply.code(500).send({ error: 'Failed to create DM conversation' });
+    }
+
+    return reply.code(201).send({
+      conversation: {
+        id: conversationId,
+        other_user_id: otherUser.id,
+        other_handle: otherUser.handle,
+        other_name: otherUser.name,
+        other_avatar_url: otherUser.avatar_url,
+        unread_count: 0
+      }
+    });
+  });
+
+  app.get('/api/dms/:conversationId/messages', { preHandler: authGuard }, async (request, reply) => {
+    const params = request.params as { conversationId: string };
+    const userId = request.authUser!.userId;
+
+    const isParticipant = await requireDmParticipant(userId, params.conversationId);
+    if (!isParticipant) {
+      return reply.code(404).send({ error: 'DM conversation not found' });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT dm.id,
+             dm.body,
+             dm.author_user_id,
+             dm.edited_at,
+             dm.created_at,
+             u.handle AS author_handle,
+             u.name AS author_name,
+             COALESCE(NULLIF(u.avatar_thumb_url, ''), NULLIF(u.avatar_url, '')) AS author_avatar_url
+      FROM dm_messages dm
+      JOIN users u ON u.id = dm.author_user_id
+      WHERE dm.conversation_id = $1
+      ORDER BY dm.created_at ASC
+      `,
+      [params.conversationId]
+    );
+
+    return {
+      messages: result.rows.map((row) => ({
+        ...row,
+        reactions: [],
+        attachments: [],
+        thread_root_message_id: null,
+        thread_reply_count: 0
+      }))
+    };
+  });
+
+  app.post('/api/dms/:conversationId/messages', { preHandler: authGuard }, async (request, reply) => {
+    const params = request.params as { conversationId: string };
+    const parsed = createDirectMessageSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const userId = request.authUser!.userId;
+    const isParticipant = await requireDmParticipant(userId, params.conversationId);
+    if (!isParticipant) {
+      return reply.code(404).send({ error: 'DM conversation not found' });
+    }
+
+    const inserted = await pool.query(
+      `
+      INSERT INTO dm_messages (conversation_id, author_user_id, body)
+      VALUES ($1, $2, $3)
+      RETURNING id, body, author_user_id, edited_at, created_at
+      `,
+      [params.conversationId, userId, parsed.data.body]
+    );
+
+    return reply.code(201).send({ message: inserted.rows[0] });
+  });
+
+  app.post('/api/dms/:conversationId/read', { preHandler: authGuard }, async (request, reply) => {
+    const params = request.params as { conversationId: string };
+    const parsed = markReadSchema.safeParse(request.body ?? {});
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const userId = request.authUser!.userId;
+    const isParticipant = await requireDmParticipant(userId, params.conversationId);
+    if (!isParticipant) {
+      return reply.code(404).send({ error: 'DM conversation not found' });
+    }
+
+    await pool.query(
+      `
+      INSERT INTO dm_read_states (user_id, conversation_id, last_read_message_id, last_read_at)
+      VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (user_id, conversation_id)
+      DO UPDATE SET
+        last_read_message_id = EXCLUDED.last_read_message_id,
+        last_read_at = NOW()
+      `,
+      [userId, params.conversationId, parsed.data.lastReadMessageId ?? null]
+    );
+
+    return { ok: true };
   });
 
   app.get('/api/channels/:channelId/preferences', { preHandler: authGuard }, async (request, reply) => {
@@ -1929,8 +2168,12 @@ export async function registerAppRoutes(app: FastifyInstance) {
              c.name AS channel_name,
              s.id AS server_id,
              s.name AS server_name,
-             COUNT(m.id)::int AS unread_count
+             COUNT(m.id)::int AS unread_count,
+             COUNT(m.id) FILTER (
+               WHERE POSITION(('@' || LOWER(viewer.handle)) IN LOWER(m.body)) > 0
+             )::int AS mention_count
       FROM memberships ms
+      JOIN users viewer ON viewer.id = ms.user_id
       JOIN servers s ON s.id = ms.server_id
       JOIN channels c ON c.server_id = s.id
       LEFT JOIN channel_preferences cp ON cp.user_id = ms.user_id AND cp.channel_id = c.id

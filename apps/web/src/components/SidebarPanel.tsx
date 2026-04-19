@@ -9,6 +9,14 @@ type Server  = { id: string; name: string; slug: string; role?: 'owner' | 'admin
 type Channel = { id: string; name: string; slug: string; notification_mode: 'hidden' | 'passive' | 'active'; snoozed_until?: string | null };
 type Member  = { user_id: string; name: string; handle: string; role: 'owner' | 'admin' | 'member' };
 type Invite  = { id: string; code: string; role_to_grant: 'admin' | 'member'; uses_count: number };
+type DmConversation = {
+  id: string;
+  other_user_id: string;
+  other_handle: string;
+  other_name: string;
+  other_avatar_url?: string | null;
+  unread_count: number;
+};
 
 type SidebarPanelProps = {
   activeTab: RailTab;
@@ -35,6 +43,7 @@ type SidebarPanelProps = {
   selectedChannelId: string;
   onSelectChannel: (id: string) => void;
   unreadCountByChannel: Map<string, number>;
+  mentionCountByChannel?: Map<string, number>;
   unreadBadgeCountByChannel?: Map<string, number>;
   showUnreadOnly: boolean;
   setShowUnreadOnly: (v: boolean) => void;
@@ -43,6 +52,12 @@ type SidebarPanelProps = {
   setChannelName: (v: string) => void;
   onCreateChannel: (e: FormEvent<HTMLFormElement>) => void;
   canCreateChannels: boolean;
+  dmConversations: DmConversation[];
+  selectedDmId: string;
+  onSelectDm: (id: string) => void;
+  dmHandleInput: string;
+  setDmHandleInput: (v: string) => void;
+  onCreateDm: (e: FormEvent<HTMLFormElement>) => void;
 };
 
 /* Shared styles for nav buttons */
@@ -82,6 +97,7 @@ export function SidebarPanel({
   selectedChannelId,
   onSelectChannel,
   unreadCountByChannel,
+  mentionCountByChannel,
   unreadBadgeCountByChannel,
   showUnreadOnly,
   setShowUnreadOnly,
@@ -90,6 +106,12 @@ export function SidebarPanel({
   setChannelName,
   onCreateChannel,
   canCreateChannels,
+  dmConversations,
+  selectedDmId,
+  onSelectDm,
+  dmHandleInput,
+  setDmHandleInput,
+  onCreateDm,
 }: SidebarPanelProps) {
   return (
     <aside className="sidebar panel flex flex-col gap-3 px-2 py-3 border-r border-border bg-card h-full overflow-y-auto">
@@ -184,14 +206,37 @@ export function SidebarPanel({
           <p className="text-xs text-muted-foreground px-2.5">
             Private chats between two people.
           </p>
-          <div className="flex flex-col gap-1">
-            {members.length === 0 && (
-              <span className="text-xs text-muted-foreground px-2.5">No contacts yet.</span>
+          <form autoComplete="off" onSubmit={onCreateDm} className="flex flex-col gap-1.5 px-2.5">
+            <Input
+              placeholder="@handle"
+              value={dmHandleInput}
+              onChange={(e) => setDmHandleInput(e.target.value)}
+            />
+            <Button type="submit" size="sm" variant="secondary">
+              Start DM
+            </Button>
+          </form>
+          <div className="flex flex-col gap-0.5">
+            {dmConversations.length === 0 && (
+              <span className="text-xs text-muted-foreground px-2.5">No direct messages yet.</span>
             )}
-            {members.map((member) => (
-              <span key={member.user_id} className={chip}>
-                @{member.handle}
-              </span>
+            {dmConversations.map((conversation) => (
+              <button
+                key={conversation.id}
+                type="button"
+                className={cn(
+                  navItem(conversation.id === selectedDmId),
+                  "flex items-center justify-between gap-2",
+                )}
+                onClick={() => void onSelectDm(conversation.id)}
+              >
+                <span className="truncate">@{conversation.other_handle}</span>
+                {conversation.unread_count > 0 ? (
+                  <Badge variant="secondary" className="text-[10px] min-w-[1.25rem] text-center px-1 py-0 rounded-full">
+                    {conversation.unread_count}
+                  </Badge>
+                ) : null}
+              </button>
             ))}
           </div>
         </>
@@ -221,6 +266,7 @@ export function SidebarPanel({
             )}
             {visibleChannels.map((channel) => {
               const unreadCount = unreadCountByChannel.get(channel.id) ?? 0;
+              const mentionCount = mentionCountByChannel?.get(channel.id) ?? 0;
               const unreadBadgeCount =
                 unreadBadgeCountByChannel?.get(channel.id) ?? unreadCount;
               const active = channel.id === selectedChannelId;
@@ -237,9 +283,16 @@ export function SidebarPanel({
                 >
                   <span className="truncate">#{channel.name}</span>
                   {unreadBadgeCount > 0 && (
-                    <Badge variant="secondary" className="text-[10px] min-w-[1.25rem] text-center px-1 py-0 rounded-full">
-                      {unreadBadgeCount}
-                    </Badge>
+                    <span className="flex items-center gap-1">
+                      {mentionCount > 0 ? (
+                        <Badge variant="default" className="text-[10px] min-w-[1rem] text-center px-1 py-0 rounded-full">
+                          @
+                        </Badge>
+                      ) : null}
+                      <Badge variant="secondary" className="text-[10px] min-w-[1.25rem] text-center px-1 py-0 rounded-full">
+                        {unreadBadgeCount}
+                      </Badge>
+                    </span>
                   )}
                 </button>
               );

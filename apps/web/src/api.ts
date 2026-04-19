@@ -232,6 +232,58 @@ export const api = {
       { method: 'POST', body: JSON.stringify(payload) },
       token
     ),
+  dmConversations: (token: string) =>
+    request<{
+      conversations: {
+        id: string;
+        other_user_id: string;
+        other_handle: string;
+        other_name: string;
+        other_avatar_url?: string | null;
+        unread_count: number;
+        last_message_at?: string | null;
+      }[];
+    }>('/api/dms', {}, token),
+  createDmConversation: (token: string, payload: { handle: string }) =>
+    request<{
+      conversation: {
+        id: string;
+        other_user_id: string;
+        other_handle: string;
+        other_name: string;
+        other_avatar_url?: string | null;
+        unread_count: number;
+      };
+    }>('/api/dms', { method: 'POST', body: JSON.stringify(payload) }, token),
+  dmMessages: (token: string, conversationId: string) =>
+    request<{
+      messages: {
+        id: string;
+        body: string;
+        author_user_id: string;
+        author_handle: string;
+        author_name: string;
+        author_avatar_url?: string | null;
+        edited_at?: string | null;
+        created_at: string;
+        reactions: { emoji: string; count: number }[];
+        attachments: { id: string; mime_type: string; original_name: string; public_url: string }[];
+        thread_root_message_id?: string | null;
+        thread_reply_count?: number;
+      }[];
+    }>(`/api/dms/${conversationId}/messages`, {}, token),
+  createDmMessage: (token: string, conversationId: string, payload: { body: string }) =>
+    request<{ message: { id: string } }>(
+      `/api/dms/${conversationId}/messages`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+  markDmRead: (token: string, conversationId: string, payload?: { lastReadMessageId?: string }) =>
+    request<{ ok: boolean }>(
+      `/api/dms/${conversationId}/read`,
+      { method: 'POST', body: JSON.stringify(payload ?? {}) },
+      token
+    ),
   channelPreference: (token: string, channelId: string) =>
     request<{ preference: { mode: 'hidden' | 'passive' | 'active'; snoozed_until?: string | null } }>(
       `/api/channels/${channelId}/preferences`,
@@ -424,6 +476,7 @@ export const api = {
         server_id: string;
         server_name: string;
         unread_count: number;
+        mention_count?: number;
       }[];
     }>('/api/unread', {}, token)
 };

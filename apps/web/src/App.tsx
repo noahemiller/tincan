@@ -51,6 +51,16 @@ type Channel = {
   snoozed_until?: string | null;
 };
 
+type DmConversation = {
+  id: string;
+  other_user_id: string;
+  other_handle: string;
+  other_name: string;
+  other_avatar_url?: string | null;
+  unread_count: number;
+  last_message_at?: string | null;
+};
+
 type Message = {
   id: string;
   body: string;
@@ -442,9 +452,11 @@ export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [servers, setServers] = useState<Server[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [dmConversations, setDmConversations] = useState<DmConversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string>("");
   const [selectedChannelId, setSelectedChannelId] = useState<string>("");
+  const [selectedDmId, setSelectedDmId] = useState<string>("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [authForm, setAuthForm] = useState({
@@ -460,6 +472,7 @@ export function App() {
   const [resetTokenExpiresAt, setResetTokenExpiresAt] = useState("");
   const [serverName, setServerName] = useState("");
   const [channelName, setChannelName] = useState("");
+  const [dmHandleInput, setDmHandleInput] = useState("");
   const [composer, setComposer] = useState("");
   const [pendingMedia, setPendingMedia] = useState<
     {
@@ -574,6 +587,7 @@ export function App() {
       server_id: string;
       server_name: string;
       unread_count: number;
+      mention_count?: number;
     }[]
   >([]);
   const [userCommands, setUserCommands] = useState<Command[]>([]);
@@ -619,6 +633,12 @@ export function App() {
   const selectedChannel = useMemo(
     () => channels.find((channel) => channel.id === selectedChannelId) ?? null,
     [channels, selectedChannelId],
+  );
+  const selectedDmConversation = useMemo(
+    () =>
+      dmConversations.find((conversation) => conversation.id === selectedDmId) ??
+      null,
+    [dmConversations, selectedDmId],
   );
   const selectedChannelModuleConfig = useMemo(() => {
     if (!selectedChannelId) {
@@ -668,6 +688,14 @@ export function App() {
     const map = new Map<string, number>();
     for (const item of unread) {
       map.set(item.channel_id, item.unread_count);
+    }
+    return map;
+  }, [unread]);
+
+  const mentionCountByChannel = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of unread) {
+      map.set(item.channel_id, item.mention_count ?? 0);
     }
     return map;
   }, [unread]);
@@ -978,6 +1006,18 @@ export function App() {
   }, [token, selectedServerId, servers]);
 
   useEffect(() => {
+    if (
+      !token ||
+      leftRailTab !== "dms" ||
+      selectedDmId ||
+      dmConversations.length === 0
+    ) {
+      return;
+    }
+    void onSelectDm(dmConversations[0]!.id);
+  }, [token, leftRailTab, selectedDmId, dmConversations]);
+
+  useEffect(() => {
     if (!token || messages.length === 0) {
       return;
     }
@@ -1164,11 +1204,13 @@ export function App() {
       const serverResult = await api.servers(nextToken);
       const unreadResult = await api.unread(nextToken);
       const userCommandResult = await api.userCommands(nextToken);
+      const dmResult = await api.dmConversations(nextToken);
 
       setUser(meResult.user);
       setServers(serverResult.servers);
       setUnread(unreadResult.unread);
       setUserCommands(userCommandResult.commands);
+      setDmConversations(dmResult.conversations);
 
       if (serverResult.servers.length > 0) {
         const firstServer = serverResult.servers[0]!;
@@ -1233,6 +1275,16 @@ export function App() {
     const preferenceResult = await api.channelPreference(nextToken, channelId);
     setMessages(messageResult.messages);
     setChannelMode(preferenceResult.preference.mode);
+  }
+
+  async function loadDmConversations(nextToken: string) {
+    const dmResult = await api.dmConversations(nextToken);
+    setDmConversations(dmResult.conversations);
+  }
+
+  async function loadDmMessages(nextToken: string, conversationId: string) {
+    const result = await api.dmMessages(nextToken, conversationId);
+    setMessages(result.messages);
   }
 
   async function loadLibraryAndCollections(
@@ -1481,26 +1533,48 @@ export function App() {
     const body = composer.trim();
     const mediaItemIds = pendingMedia.map((media) => media.id);
 
-    if (!token || !selectedChannelId) {
+    if (!token) {
       return;
     }
 
-    if (!body && mediaItemIds.length === 0) {
+    const isDmMode = leftRailTab === "dms";
+    if (isDmMode && !selectedDmId) {
+      return;
+    }
+    if (!isDmMode && !selectedChannelId) {
+      return;
+    }
+
+    if (isDmMode) {
+      if (!body) {
+        setError("Write a message.");
+        return;
+      }
+    } else if (!body && mediaItemIds.length === 0) {
       setError("Write a message or attach at least one file.");
       return;
     }
 
     try {
       setBusy(true);
-      await api.createMessage(token, selectedChannelId, {
-        body,
-        mediaItemIds,
-      });
+      if (isDmMode) {
+        await api.createDmMessage(token, selectedDmId, { body });
+      } else {
+        await api.createMessage(token, selectedChannelId, {
+          body,
+          mediaItemIds,
+        });
+      }
       setComposer("");
       setPendingMedia([]);
-      await loadMessages(token, selectedChannelId);
-      const unreadResult = await api.unread(token);
-      setUnread(unreadResult.unread);
+      if (isDmMode) {
+        await loadDmMessages(token, selectedDmId);
+        await loadDmConversations(token);
+      } else {
+        await loadMessages(token, selectedChannelId);
+        const unreadResult = await api.unread(token);
+        setUnread(unreadResult.unread);
+      }
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Failed to send message",
@@ -1513,7 +1587,7 @@ export function App() {
   async function onUploadFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
-    if (!file || !token || !selectedChannelId) {
+    if (!file || !token || !selectedChannelId || leftRailTab === "dms") {
       return;
     }
 
@@ -2073,6 +2147,8 @@ export function App() {
       return;
     }
 
+    setLeftRailTab("channels");
+    setSelectedDmId("");
     setSelectedChannelId(channelId);
     setChannelSettingsOpen(false);
     setCenterPane("chat");
@@ -2086,19 +2162,91 @@ export function App() {
     setUnread(unreadResult.unread);
   }
 
+  async function onSelectDm(conversationId: string) {
+    if (!token) {
+      return;
+    }
+
+    setLeftRailTab("dms");
+    setSelectedDmId(conversationId);
+    setCenterPane("chat");
+    setChannelSettingsOpen(false);
+    setPendingMedia([]);
+    setSelectedThreadRootId("");
+    setThreadMessages([]);
+    const dmResult = await api.dmMessages(token, conversationId);
+    setMessages(dmResult.messages);
+    const latestMessageId =
+      dmResult.messages[dmResult.messages.length - 1]?.id;
+    await api.markDmRead(token, conversationId, {
+      lastReadMessageId: latestMessageId,
+    });
+    await loadDmConversations(token);
+  }
+
+  async function onCreateDm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!token || !dmHandleInput.trim()) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      const result = await api.createDmConversation(token, {
+        handle: dmHandleInput.trim().replace(/^@+/, ""),
+      });
+      setDmHandleInput("");
+      setSelectedDmId(result.conversation.id);
+      setLeftRailTab("dms");
+      setCenterPane("chat");
+      await loadDmConversations(token);
+      await loadDmMessages(token, result.conversation.id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Failed to start DM");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onMessageListBottomStateChange(atBottom: boolean) {
-    if (
-      !atBottom ||
-      !token ||
-      !selectedChannelId ||
-      messages.length === 0 ||
-      !selectedChannelModuleConfig.notifications.autoMarkReadAtBottom
-    ) {
+    if (!atBottom || !token || messages.length === 0) {
       return;
     }
 
     const latestMessageId = messages[messages.length - 1]?.id;
     if (!latestMessageId) {
+      return;
+    }
+
+    if (leftRailTab === "dms") {
+      if (!selectedDmId) {
+        return;
+      }
+      const inFlightKey = `dm:${selectedDmId}:${latestMessageId}`;
+      if (markReadInFlightRef.current === inFlightKey) {
+        return;
+      }
+      markReadInFlightRef.current = inFlightKey;
+      try {
+        await api.markDmRead(token, selectedDmId, {
+          lastReadMessageId: latestMessageId,
+        });
+        await loadDmConversations(token);
+      } catch {
+        // Non-blocking.
+      } finally {
+        if (markReadInFlightRef.current === inFlightKey) {
+          markReadInFlightRef.current = null;
+        }
+      }
+      return;
+    }
+
+    if (
+      !selectedChannelId ||
+      !selectedChannelModuleConfig.notifications.autoMarkReadAtBottom
+    ) {
       return;
     }
 
@@ -2426,6 +2574,13 @@ export function App() {
     if (tab === "design") {
       setCenterPane("design");
       setChannelSettingsOpen(false);
+    } else if (tab === "dms") {
+      setCenterPane("chat");
+      setChannelSettingsOpen(false);
+      setPendingMedia([]);
+      if (token) {
+        void loadDmConversations(token);
+      }
     } else {
       setCenterPane((prev) => (prev === "design" ? "chat" : prev));
     }
@@ -2537,6 +2692,7 @@ export function App() {
         selectedChannelId={selectedChannelId}
         onSelectChannel={(id) => void onSelectChannel(id)}
         unreadCountByChannel={unreadCountByChannel}
+        mentionCountByChannel={mentionCountByChannel}
         unreadBadgeCountByChannel={unreadBadgeCountByChannel}
         showUnreadOnly={showUnreadOnly}
         setShowUnreadOnly={setShowUnreadOnly}
@@ -2545,6 +2701,12 @@ export function App() {
         setChannelName={setChannelName}
         onCreateChannel={onCreateChannel}
         canCreateChannels={canCreateChannels}
+        dmConversations={dmConversations}
+        selectedDmId={selectedDmId}
+        onSelectDm={(id) => void onSelectDm(id)}
+        dmHandleInput={dmHandleInput}
+        setDmHandleInput={setDmHandleInput}
+        onCreateDm={onCreateDm}
       />
 
       <div
@@ -2645,14 +2807,18 @@ export function App() {
                 : centerPane === "account"
                   ? accountView === "profile"
                     ? "Profile"
-                    : accountView === "settings"
+                  : accountView === "settings"
                       ? "Settings"
                       : "Accessibility"
+                  : leftRailTab === "dms"
+                    ? selectedDmConversation
+                      ? `@${selectedDmConversation.other_handle}`
+                      : "Direct messages"
                   : selectedChannel
                     ? `#${selectedChannel.name}`
                     : "Pick a channel"}
           </h2>
-          {centerPane === "chat" && (
+          {centerPane === "chat" && leftRailTab === "channels" && (
             <Button
               type="button"
               variant="ghost"
@@ -2669,7 +2835,7 @@ export function App() {
         </div>
 
         {/* ── Channel settings accordion ── */}
-        {centerPane === "chat" && (
+        {centerPane === "chat" && leftRailTab === "channels" && (
           <div
             className={`channel-settings-accordion${channelSettingsOpen ? " open" : ""}`}
             aria-hidden={!channelSettingsOpen}
@@ -3187,7 +3353,10 @@ export function App() {
             borderWidthPx={selectedChannelModuleConfig.ui.borderWidthPx}
             enableLinkPreviews={selectedChannelModuleConfig.modules.linkPreviews}
             enableMusicEmbeds={selectedChannelModuleConfig.modules.musicEmbeds}
-            enableThreads={selectedChannelModuleConfig.modules.threads}
+            enableThreads={
+              leftRailTab === "channels" &&
+              selectedChannelModuleConfig.modules.threads
+            }
             onBottomStateChange={(atBottom) => {
               void onMessageListBottomStateChange(atBottom);
             }}
@@ -3307,18 +3476,20 @@ export function App() {
                 onChange={(event) => setComposer(event.target.value)}
                 className="h-9"
               />
-              <Input
-                type="file"
-                className="text-xs text-muted-foreground file:mr-2 file:text-xs file:rounded file:border file:border-border file:bg-muted file:px-2 file:py-0.5 file:text-foreground"
-                onChange={onUploadFile}
-                disabled={!selectedChannelId || busy}
-              />
+              {leftRailTab === "channels" ? (
+                <Input
+                  type="file"
+                  className="text-xs text-muted-foreground file:mr-2 file:text-xs file:rounded file:border file:border-border file:bg-muted file:px-2 file:py-0.5 file:text-foreground"
+                  onChange={onUploadFile}
+                  disabled={!selectedChannelId || busy}
+                />
+              ) : null}
             </div>
             <Button
               type="submit"
               size="sm"
               disabled={
-                !selectedChannelId ||
+                (leftRailTab === "channels" ? !selectedChannelId : !selectedDmId) ||
                 busy ||
                 (composer.trim().length === 0 && pendingMedia.length === 0)
               }
