@@ -882,6 +882,13 @@ export function App() {
   }, [token]);
 
   useEffect(() => {
+    if (!token || selectedServerId || servers.length === 0) {
+      return;
+    }
+    void onSelectServer(servers[0]!.id);
+  }, [token, selectedServerId, servers]);
+
+  useEffect(() => {
     if (!token || messages.length === 0) {
       return;
     }
