@@ -720,10 +720,10 @@ export async function registerAppRoutes(app: FastifyInstance) {
 
     const userId = request.authUser!.userId;
 
-    const canManageChannels = await requireServerRole(userId, params.serverId, 'admin');
+    const canManageChannels = await requireServerRole(userId, params.serverId, 'member');
 
     if (!canManageChannels) {
-      return reply.code(403).send({ error: 'Admin role required' });
+      return reply.code(403).send({ error: 'Server membership required' });
     }
 
     const channelSlug = slugify(parsed.data.name);

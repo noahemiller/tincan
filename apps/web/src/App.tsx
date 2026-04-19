@@ -571,8 +571,7 @@ export function App() {
     () => servers.find((server) => server.id === selectedServerId) ?? null,
     [servers, selectedServerId],
   );
-  const canCreateChannels =
-    selectedServer?.role === "owner" || selectedServer?.role === "admin";
+  const canCreateChannels = Boolean(selectedServer);
 
   const selectedChannel = useMemo(
     () => channels.find((channel) => channel.id === selectedChannelId) ?? null,

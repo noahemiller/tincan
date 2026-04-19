@@ -249,7 +249,7 @@ export function SidebarPanel({
           <div className="border-t border-border pt-3">
             <form autoComplete="off" onSubmit={onCreateChannel} className="flex flex-col gap-1.5">
               <Input
-                placeholder={canCreateChannels ? 'New channel' : 'Admin role required'}
+                placeholder={canCreateChannels ? 'New channel' : 'Join a server to add channels'}
                 value={channelName}
                 onChange={(e) => setChannelName(e.target.value)}
                 disabled={!canCreateChannels}
@@ -259,7 +259,7 @@ export function SidebarPanel({
               </Button>
               {!canCreateChannels && (
                 <p className="text-[11px] text-muted-foreground px-0.5">
-                  Channel creation is limited to owner/admin for this server.
+                  Select or join a server to add channels.
                 </p>
               )}
             </form>

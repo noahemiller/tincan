@@ -162,7 +162,7 @@ async function runRoleMatrix() {
     headers: auth(member),
     body: JSON.stringify({ name: `member-before-${uid('c')}` })
   });
-  assert.equal(memberCreateChannelBefore.status, 403, 'member should not create channel before promotion');
+  assert.equal(memberCreateChannelBefore.status, 201, 'member should create channel');
 
   const memberCreateCommandBefore = await request(`/api/servers/${serverId}/commands`, {
     method: 'POST',
@@ -190,7 +190,7 @@ async function runRoleMatrix() {
     headers: auth(member),
     body: JSON.stringify({ name: `member-after-${uid('c')}` })
   });
-  assert.equal(memberCreateChannelAfter.status, 201, 'admin should create channel');
+  assert.equal(memberCreateChannelAfter.status, 201, 'admin should still create channel');
 
   const memberCreateCommandAfter = await request(`/api/servers/${serverId}/commands`, {
     method: 'POST',
