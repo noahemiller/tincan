@@ -1222,13 +1222,18 @@ export function App() {
       const serverResult = await api.servers(nextToken);
       const unreadResult = await api.unread(nextToken);
       const userCommandResult = await api.userCommands(nextToken);
-      const dmResult = await api.dmConversations(nextToken);
 
       setUser(meResult.user);
       setServers(serverResult.servers);
       setUnread(unreadResult.unread);
       setUserCommands(userCommandResult.commands);
-      setDmConversations(dmResult.conversations);
+      try {
+        const dmResult = await api.dmConversations(nextToken);
+        setDmConversations(dmResult.conversations);
+      } catch {
+        // Backward-compatible: allow older API versions without /api/dms.
+        setDmConversations([]);
+      }
 
       if (serverResult.servers.length > 0) {
         const firstServer = serverResult.servers[0]!;
@@ -1301,8 +1306,13 @@ export function App() {
   }
 
   async function loadDmConversations(nextToken: string) {
-    const dmResult = await api.dmConversations(nextToken);
-    setDmConversations(dmResult.conversations);
+    try {
+      const dmResult = await api.dmConversations(nextToken);
+      setDmConversations(dmResult.conversations);
+    } catch {
+      // Backward-compatible: allow older API versions without /api/dms.
+      setDmConversations([]);
+    }
   }
 
   async function loadDmMessages(nextToken: string, conversationId: string) {
