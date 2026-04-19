@@ -492,6 +492,9 @@ export function App() {
   const [selectedThreadRootId, setSelectedThreadRootId] = useState("");
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [threadComposer, setThreadComposer] = useState("");
+  const [threadReadCountsByRootId, setThreadReadCountsByRootId] = useState<
+    Record<string, number>
+  >({});
   const [channelMode, setChannelMode] = useState<
     "hidden" | "passive" | "active"
   >("passive");
@@ -1695,6 +1698,10 @@ export function App() {
       setSelectedThreadRootId(rootMessageId);
       const result = await api.threadMessages(token, rootMessageId);
       setThreadMessages(result.messages);
+      setThreadReadCountsByRootId((prev) => ({
+        ...prev,
+        [rootMessageId]: Math.max(result.messages.length - 1, 0),
+      }));
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Failed to load thread",
@@ -1719,6 +1726,10 @@ export function App() {
       setThreadComposer("");
       const result = await api.threadMessages(token, selectedThreadRootId);
       setThreadMessages(result.messages);
+      setThreadReadCountsByRootId((prev) => ({
+        ...prev,
+        [selectedThreadRootId]: Math.max(result.messages.length - 1, 0),
+      }));
       if (selectedChannelId) {
         await loadMessages(token, selectedChannelId);
       }
@@ -3507,6 +3518,8 @@ export function App() {
               selectedChannelModuleConfig.modules.threads
             }
             enableStreamReplies={leftRailTab === "channels"}
+            selectedThreadRootId={selectedThreadRootId}
+            threadReadCountsByRootId={threadReadCountsByRootId}
             onBottomStateChange={(atBottom) => {
               void onMessageListBottomStateChange(atBottom);
             }}

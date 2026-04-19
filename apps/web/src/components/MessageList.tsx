@@ -53,6 +53,8 @@ type MessageListProps = {
   enableMusicEmbeds?: boolean;
   enableThreads?: boolean;
   enableStreamReplies?: boolean;
+  selectedThreadRootId?: string;
+  threadReadCountsByRootId?: Record<string, number>;
 };
 
 export function MessageList({
@@ -73,6 +75,8 @@ export function MessageList({
   enableMusicEmbeds = true,
   enableThreads = true,
   enableStreamReplies = true,
+  selectedThreadRootId,
+  threadReadCountsByRootId = {},
 }: MessageListProps) {
   const { resolvedTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -163,7 +167,7 @@ export function MessageList({
         <article
           key={message.id}
           className={cn(
-            "group relative rounded-lg border-b border-border px-3 hover:bg-accent/50 transition-colors",
+            "group relative rounded-lg border-b border-border px-3 hover:bg-accent/70 transition-colors",
             density === "compact" ? "py-1.5" : "py-2.5",
           )}
           style={{
@@ -582,7 +586,32 @@ export function MessageList({
                 </button>
               ))}
             </div>
-            <div />
+            <div className="flex items-center">
+              {enableThreads && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-6 px-2 text-xs",
+                    Math.max(
+                      (message.thread_reply_count ?? 0) -
+                        (threadReadCountsByRootId[message.id] ?? 0),
+                      0,
+                    ) > 0 &&
+                      selectedThreadRootId !== message.id
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                  onClick={() => void onOpenThread(message.id)}
+                >
+                  Thread{" "}
+                  <span className="ml-1">
+                    ({message.thread_reply_count ?? 0})
+                  </span>
+                </Button>
+              )}
+            </div>
           </div>
         </article>
       ))}
