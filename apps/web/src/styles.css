@@ -113,16 +113,39 @@
 
 /* App chrome: rail | sidebar | main | thread */
 .app-shell {
+  --center-col-min: 520px;
+  --right-col-width: 256px;
   display: grid;
-  grid-template-columns: 56px 240px 1fr 256px;
+  grid-template-columns: 56px 240px 8px minmax(var(--center-col-min), 1fr) 8px var(--right-col-width);
   gap: 0;
   height: 100vh;
   overflow: hidden;
 }
 
+.column-resizer {
+  cursor: col-resize;
+  background: transparent;
+  transition: background-color 120ms ease;
+}
+
+.column-resizer:hover {
+  background: color-mix(in oklch, var(--border) 80%, transparent);
+}
+
+body.is-col-resizing,
+body.is-col-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
 @media (max-width: 1180px) {
   .app-shell {
     grid-template-columns: 56px 220px 1fr;
+  }
+
+  .column-resizer,
+  .sidebar.unread {
+    display: none;
   }
 }
 

@@ -3,6 +3,7 @@ import {
   ChangeEvent,
   DragEvent,
   FormEvent,
+  MouseEvent as ReactMouseEvent,
   useEffect,
   useMemo,
   useRef,
@@ -117,6 +118,7 @@ const TOKEN_KEY = "tincan_token";
 const REFRESH_TOKEN_KEY = "tincan_refresh_token";
 const UI_PREFS_KEY = "tincan_ui_prefs_v1";
 const CHANNEL_MODULE_CONFIG_KEY = "tincan_channel_module_config_v1";
+const COLUMN_LAYOUT_KEY = "tincan_column_layout_v1";
 
 type UiPrefs = {
   textSize: "compact" | "comfortable" | "large";
@@ -348,6 +350,33 @@ function loadChannelModuleConfigMap(): ChannelModuleConfigMap {
   }
 }
 
+function loadColumnLayout() {
+  const fallback = { centerMinWidth: 520, rightWidth: 256 };
+  try {
+    const raw = localStorage.getItem(COLUMN_LAYOUT_KEY);
+    if (!raw) {
+      return fallback;
+    }
+    const parsed = JSON.parse(raw) as Partial<{
+      centerMinWidth: number;
+      rightWidth: number;
+    }>;
+    return {
+      centerMinWidth:
+        typeof parsed.centerMinWidth === "number" &&
+        Number.isFinite(parsed.centerMinWidth)
+          ? Math.min(1200, Math.max(360, parsed.centerMinWidth))
+          : fallback.centerMinWidth,
+      rightWidth:
+        typeof parsed.rightWidth === "number" && Number.isFinite(parsed.rightWidth)
+          ? Math.min(560, Math.max(220, parsed.rightWidth))
+          : fallback.rightWidth,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 function decodeHtmlEntities(value?: string | null) {
   if (!value) {
     return "";
@@ -455,6 +484,12 @@ export function App() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [leftRailTab, setLeftRailTab] = useState<RailTab>("channels");
+  const [centerColumnMinWidth, setCenterColumnMinWidth] = useState<number>(
+    () => loadColumnLayout().centerMinWidth,
+  );
+  const [rightColumnWidth, setRightColumnWidth] = useState<number>(
+    () => loadColumnLayout().rightWidth,
+  );
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [linkPreviews, setLinkPreviews] = useState<Record<string, LinkPreview>>(
     {},
@@ -999,6 +1034,16 @@ export function App() {
       JSON.stringify(channelModuleConfigs),
     );
   }, [channelModuleConfigs]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      COLUMN_LAYOUT_KEY,
+      JSON.stringify({
+        centerMinWidth: centerColumnMinWidth,
+        rightWidth: rightColumnWidth,
+      }),
+    );
+  }, [centerColumnMinWidth, rightColumnWidth]);
 
   useEffect(() => {
     if (!selectedChannelId) {
@@ -2307,6 +2352,50 @@ export function App() {
     }
   }
 
+  function startColumnResize(
+    type: "center" | "right",
+    event: ReactMouseEvent<HTMLDivElement>,
+  ) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startCenter = centerColumnMinWidth;
+    const startRight = rightColumnWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - startX;
+      const staticCols = 56 + 240 + 16;
+      if (type === "center") {
+        const maxCenter = Math.max(
+          360,
+          window.innerWidth - staticCols - rightColumnWidth - 260,
+        );
+        setCenterColumnMinWidth(
+          Math.min(maxCenter, Math.max(360, startCenter + delta)),
+        );
+      } else {
+        const nextRight = Math.min(560, Math.max(220, startRight - delta));
+        const maxCenter = Math.max(
+          360,
+          window.innerWidth - staticCols - nextRight - 260,
+        );
+        setRightColumnWidth(nextRight);
+        if (centerColumnMinWidth > maxCenter) {
+          setCenterColumnMinWidth(maxCenter);
+        }
+      }
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      document.body.classList.remove("is-col-resizing");
+    };
+
+    document.body.classList.add("is-col-resizing");
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }
+
   if (!token || !user) {
     return (
       <AuthShell
@@ -2334,7 +2423,13 @@ export function App() {
   return (
     <main
       className={`app-shell size-${uiPrefs.textSize} contrast-${uiPrefs.contrast}`}
-      style={selectedChannelThemeStyle}
+      style={
+        {
+          ...(selectedChannelThemeStyle ?? {}),
+          "--center-col-min": `${centerColumnMinWidth}px`,
+          "--right-col-width": `${rightColumnWidth}px`,
+        } as CSSProperties
+      }
     >
       <Rail activeTab={leftRailTab} onTabChange={onRailTabChange} />
 
@@ -2373,7 +2468,14 @@ export function App() {
         canCreateChannels={canCreateChannels}
       />
 
-      <section className="flex flex-col overflow-hidden border-r border-border bg-background">
+      <div
+        className="column-resizer"
+        role="separator"
+        aria-label="Resize center column"
+        onMouseDown={(event) => startColumnResize("center", event)}
+      />
+
+      <section className="flex flex-col overflow-hidden border-r border-border bg-background min-w-0">
         {/* ── Global toolbar: search + library toggle + account menu ── */}
         <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-border shrink-0">
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -3147,6 +3249,13 @@ export function App() {
           </form>
         )}
       </section>
+
+      <div
+        className="column-resizer"
+        role="separator"
+        aria-label="Resize right column"
+        onMouseDown={(event) => startColumnResize("right", event)}
+      />
 
       <ThreadPanel
         threadMessages={threadMessages}
