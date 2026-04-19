@@ -123,6 +123,7 @@ const COLUMN_LAYOUT_KEY = "tincan_column_layout_v1";
 type UiPrefs = {
   textSize: "compact" | "comfortable" | "large";
   contrast: "default" | "high" | "soft" | "rg-safe";
+  sessionDuration: "standard" | "hour";
   onboarded: boolean;
 };
 
@@ -161,6 +162,7 @@ function loadUiPrefs(): UiPrefs {
   const fallback: UiPrefs = {
     textSize: "comfortable",
     contrast: "default",
+    sessionDuration: "standard",
     onboarded: false,
   };
   try {
@@ -183,6 +185,7 @@ function loadUiPrefs(): UiPrefs {
         parsed.contrast === "rg-safe"
           ? parsed.contrast
           : "default",
+      sessionDuration: parsed.sessionDuration === "hour" ? "hour" : "standard",
       onboarded: parsed.onboarded === true,
     };
   } catch {
@@ -604,6 +607,8 @@ export function App() {
   const channelConfigUploadRef = useRef<HTMLInputElement | null>(null);
   const markReadInFlightRef = useRef<string | null>(null);
   const lastMarkedReadByChannelRef = useRef<Record<string, string>>({});
+  const sessionRefreshInFlightRef = useRef(false);
+  const didBootstrapRef = useRef(false);
 
   const selectedServer = useMemo(
     () => servers.find((server) => server.id === selectedServerId) ?? null,
@@ -913,11 +918,57 @@ export function App() {
 
   useEffect(() => {
     if (!token) {
+      didBootstrapRef.current = false;
       return;
     }
+    if (didBootstrapRef.current) {
+      return;
+    }
+    didBootstrapRef.current = true;
 
     void bootstrap(token);
   }, [token]);
+
+  useEffect(() => {
+    if (
+      !token ||
+      !refreshToken ||
+      uiPrefs.sessionDuration !== "hour"
+    ) {
+      return;
+    }
+
+    const refreshSessionToken = async () => {
+      if (sessionRefreshInFlightRef.current) {
+        return;
+      }
+      sessionRefreshInFlightRef.current = true;
+      try {
+        const refreshed = await api.refresh({ refreshToken });
+        const nextToken = refreshed.accessToken ?? refreshed.token;
+        localStorage.setItem(TOKEN_KEY, nextToken);
+        setToken(nextToken);
+        setUser(refreshed.user);
+        if (refreshed.refreshToken) {
+          localStorage.setItem(REFRESH_TOKEN_KEY, refreshed.refreshToken);
+          setRefreshToken(refreshed.refreshToken);
+        }
+      } catch {
+        // Ignore background refresh failures and let normal auth paths handle logout.
+      } finally {
+        sessionRefreshInFlightRef.current = false;
+      }
+    };
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      void refreshSessionToken();
+    }, 8 * 60 * 1000);
+
+    return () => window.clearInterval(interval);
+  }, [token, refreshToken, uiPrefs.sessionDuration]);
 
   useEffect(() => {
     if (!token || selectedServerId || servers.length === 0) {

@@ -30,6 +30,7 @@ type ChangePasswordForm = {
 type UiPrefs = {
   textSize: 'compact' | 'comfortable' | 'large';
   contrast: 'default' | 'high' | 'soft' | 'rg-safe';
+  sessionDuration: 'standard' | 'hour';
   onboarded: boolean;
 };
 
@@ -349,6 +350,19 @@ export function AccountWorkspace({
                 <option value="high">High contrast</option>
                 <option value="soft">Soft contrast</option>
                 <option value="rg-safe">Red/green safe</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
+              Session duration
+              <select
+                className={selectCls}
+                value={uiPrefs.sessionDuration}
+                onChange={(e) =>
+                  setUiPrefs((prev) => ({ ...prev, sessionDuration: e.target.value as UiPrefs['sessionDuration'] }))
+                }
+              >
+                <option value="standard">Standard</option>
+                <option value="hour">Keep active (~1 hour)</option>
               </select>
             </label>
           </div>
