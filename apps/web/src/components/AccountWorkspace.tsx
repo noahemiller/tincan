@@ -16,8 +16,6 @@ type ProfileForm = {
   handle: string;
   email: string;
   bio: string;
-  avatarUrl: string;
-  avatarThumbUrl: string;
   homeServerId: string;
 };
 
@@ -154,26 +152,6 @@ export function AccountWorkspace({
                   value={profileForm.email}
                   onChange={(e) => setProfileForm((prev) => ({ ...prev, email: e.target.value }))}
                   required
-                  className="text-sm"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
-                Avatar URL
-                <Input
-                  type="url"
-                  value={profileForm.avatarUrl}
-                  onChange={(e) => setProfileForm((prev) => ({ ...prev, avatarUrl: e.target.value }))}
-                  placeholder="https://…"
-                  className="text-sm"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
-                Avatar thumb URL
-                <Input
-                  type="url"
-                  value={profileForm.avatarThumbUrl}
-                  onChange={(e) => setProfileForm((prev) => ({ ...prev, avatarThumbUrl: e.target.value }))}
-                  placeholder="https://…"
                   className="text-sm"
                 />
               </label>

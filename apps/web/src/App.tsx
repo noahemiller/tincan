@@ -608,8 +608,6 @@ export function App() {
     handle: "",
     email: "",
     bio: "",
-    avatarUrl: "",
-    avatarThumbUrl: "",
     homeServerId: "",
   });
   const [changePasswordForm, setChangePasswordForm] = useState({
@@ -1182,8 +1180,6 @@ export function App() {
       handle: user.handle ?? "",
       email: user.email ?? "",
       bio: user.bio ?? "",
-      avatarUrl: user.avatar_url ?? "",
-      avatarThumbUrl: user.avatar_thumb_url ?? "",
       homeServerId: user.home_server_id ?? "",
     });
   }, [user]);
@@ -2534,8 +2530,6 @@ export function App() {
         handle: profileForm.handle.trim(),
         email: profileForm.email.trim().toLowerCase(),
         bio: profileForm.bio.trim() || null,
-        avatarUrl: profileForm.avatarUrl.trim() || null,
-        avatarThumbUrl: profileForm.avatarThumbUrl.trim() || null,
         homeServerId: profileForm.homeServerId || null,
       });
       setUser(result.user);
@@ -2562,11 +2556,6 @@ export function App() {
         avatarThumbUrl: avatarUrl,
       });
       setUser(result.user);
-      setProfileForm((prev) => ({
-        ...prev,
-        avatarUrl,
-        avatarThumbUrl: avatarUrl,
-      }));
       setError("");
     } catch (cause) {
       setError(
