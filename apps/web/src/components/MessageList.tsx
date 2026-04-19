@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useTheme } from "@/components/ThemeProvider";
 import { cn } from "@/lib/utils";
 import {
@@ -78,8 +79,13 @@ export function MessageList({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
-  const [openMenuMessageId, setOpenMenuMessageId] = useState<string | null>(null);
-  const quickReactions = ["😂", "⭐", "😮", "👍"];
+  const [openEmojiPickerMessageId, setOpenEmojiPickerMessageId] = useState<string | null>(null);
+  const [emojiQuery, setEmojiQuery] = useState("");
+  const fallbackQuickReactions = ["😂", "👍", "❤️"];
+  const emojiCatalog = [
+    "😂","🤣","😮","👍","❤️","🔥","🎺","🎉","⭐","👏","😍","🤔","😎","🥲","😭","🥳",
+    "💯","✅","❌","🚀","🙏","👀","😬","😅","😢","🤝","💀","🤯","😡","🫠","🙂","😴",
+  ];
 
   const messageById = useMemo(() => {
     const map = new Map<string, Message>();
@@ -88,6 +94,37 @@ export function MessageList({
     }
     return map;
   }, [messages]);
+
+  const frequentReactionEmojis = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const message of messages) {
+      for (const reaction of message.reactions) {
+        totals.set(reaction.emoji, (totals.get(reaction.emoji) ?? 0) + reaction.count);
+      }
+    }
+    const sorted = [...totals.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([emoji]) => emoji)
+      .filter((emoji) => emoji.trim().length > 0);
+    const picks = sorted.slice(0, 3);
+    for (const fallback of fallbackQuickReactions) {
+      if (picks.length >= 3) {
+        break;
+      }
+      if (!picks.includes(fallback)) {
+        picks.push(fallback);
+      }
+    }
+    return picks;
+  }, [messages]);
+
+  const visibleEmojiCatalog = useMemo(() => {
+    const query = emojiQuery.trim();
+    if (!query) {
+      return emojiCatalog;
+    }
+    return emojiCatalog.filter((emoji) => emoji.includes(query));
+  }, [emojiQuery]);
 
   const reportBottom = useCallback(() => {
     if (!onBottomStateChange) {
@@ -126,7 +163,7 @@ export function MessageList({
         <article
           key={message.id}
           className={cn(
-            "group rounded-lg border-b border-border px-3 hover:bg-accent/40 transition-colors",
+            "group relative rounded-lg border-b border-border px-3 hover:bg-accent/50 transition-colors",
             density === "compact" ? "py-1.5" : "py-2.5",
           )}
           style={{
@@ -134,6 +171,92 @@ export function MessageList({
             borderBottomWidth: `${borderWidthPx}px`,
           }}
         >
+          {/* Hover actions */}
+          {(enableStreamReplies || enableThreads || onToggleReaction) && (
+            <div className="absolute right-3 -top-3 z-20 flex items-center gap-1 rounded-md border border-border bg-popover px-1.5 py-1 shadow-sm opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity">
+              {frequentReactionEmojis.map((emoji) => (
+                <Button
+                  key={`${message.id}-hover-quick-${emoji}`}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-sm"
+                  onClick={() => {
+                    if (onToggleReaction) {
+                      void onToggleReaction(message.id, emoji);
+                    }
+                  }}
+                >
+                  {emoji}
+                </Button>
+              ))}
+              {onToggleReaction && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() =>
+                    setOpenEmojiPickerMessageId((prev) =>
+                      prev === message.id ? null : message.id,
+                    )
+                  }
+                >
+                  Add reaction
+                </Button>
+              )}
+              {enableStreamReplies && onReplyToMessage && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => onReplyToMessage(message.id)}
+                >
+                  Reply
+                </Button>
+              )}
+              {enableThreads && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => void onOpenThread(message.id)}
+                >
+                  Reply in thread
+                </Button>
+              )}
+            </div>
+          )}
+
+          {openEmojiPickerMessageId === message.id && onToggleReaction && (
+            <div className="absolute right-3 top-8 z-30 w-[260px] rounded-md border border-border bg-popover p-2 shadow-lg">
+              <Input
+                placeholder="Find reaction"
+                value={emojiQuery}
+                onChange={(event) => setEmojiQuery(event.target.value)}
+                className="h-8 text-sm mb-2"
+              />
+              <div className="grid grid-cols-8 gap-1">
+                {visibleEmojiCatalog.slice(0, 40).map((emoji) => (
+                  <button
+                    key={`${message.id}-picker-${emoji}`}
+                    type="button"
+                    className="h-7 w-7 rounded hover:bg-accent text-base"
+                    onClick={() => {
+                      void onToggleReaction(message.id, emoji);
+                      setOpenEmojiPickerMessageId(null);
+                      setEmojiQuery("");
+                    }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div
             className={cn(
@@ -435,7 +558,7 @@ export function MessageList({
             </div>
           )}
 
-          {/* Footer row: reactions (left) + actions (right) */}
+          {/* Footer row: reactions (left) */}
           <div
             className={cn(
               "mt-2 flex items-end justify-between gap-2",
@@ -462,152 +585,18 @@ export function MessageList({
                 <button
                   type="button"
                   className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-muted text-xs hover:bg-accent transition-colors"
-                  onClick={() => void onToggleReaction(message.id, "🙂")}
+                  onClick={() =>
+                    setOpenEmojiPickerMessageId((prev) =>
+                      prev === message.id ? null : message.id,
+                    )
+                  }
                   aria-label="Add reaction"
                 >
                   🙂
                 </button>
               )}
             </div>
-
-            <div className="relative flex items-center gap-1.5">
-              {enableStreamReplies && onReplyToMessage && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => onReplyToMessage(message.id)}
-                >
-                  Reply
-                </Button>
-              )}
-              {enableThreads && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => void onOpenThread(message.id)}
-                >
-                  {message.thread_reply_count
-                    ? `Thread (${message.thread_reply_count})`
-                    : "Reply in thread"}
-                </Button>
-              )}
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                aria-label="More message actions"
-                onClick={() =>
-                  setOpenMenuMessageId((prev) =>
-                    prev === message.id ? null : message.id,
-                  )
-                }
-              >
-                ⋯
-              </Button>
-
-              {openMenuMessageId === message.id && (
-                <div className="absolute right-0 top-8 z-20 min-w-[220px] rounded-md border border-border bg-popover p-2 shadow-lg">
-                  <div className="flex gap-1 pb-2 border-b border-border">
-                    {quickReactions.map((emoji) => (
-                      <button
-                        key={`${message.id}-quick-${emoji}`}
-                        type="button"
-                        className="h-8 w-8 rounded bg-muted hover:bg-accent text-base"
-                        onClick={() => {
-                          if (onToggleReaction) {
-                            void onToggleReaction(message.id, emoji);
-                          }
-                          setOpenMenuMessageId(null);
-                        }}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="pt-2 flex flex-col">
-                    <button
-                      type="button"
-                      className="text-left text-sm px-2 py-1.5 rounded hover:bg-accent"
-                      onClick={() => {
-                        if (onToggleReaction) {
-                          void onToggleReaction(message.id, "👍");
-                        }
-                        setOpenMenuMessageId(null);
-                      }}
-                    >
-                      Add Reaction
-                    </button>
-                    <button
-                      type="button"
-                      className="text-left text-sm px-2 py-1.5 rounded hover:bg-accent"
-                      onClick={() => {
-                        setOpenMenuMessageId(null);
-                      }}
-                    >
-                      View Reactions ({message.reactions.length})
-                    </button>
-                    {enableStreamReplies && onReplyToMessage && (
-                      <button
-                        type="button"
-                        className="text-left text-sm px-2 py-1.5 rounded hover:bg-accent"
-                        onClick={() => {
-                          onReplyToMessage(message.id);
-                          setOpenMenuMessageId(null);
-                        }}
-                      >
-                        Reply
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="text-left text-sm px-2 py-1.5 rounded hover:bg-accent"
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(message.body);
-                        } catch {
-                          // ignore clipboard failures
-                        }
-                        setOpenMenuMessageId(null);
-                      }}
-                    >
-                      Forward
-                    </button>
-                    {enableThreads && (
-                      <button
-                        type="button"
-                        className="text-left text-sm px-2 py-1.5 rounded hover:bg-accent"
-                        onClick={() => {
-                          void onOpenThread(message.id);
-                          setOpenMenuMessageId(null);
-                        }}
-                      >
-                        Create Thread
-                      </button>
-                    )}
-                    {onEditMessage &&
-                      currentUserId === message.author_user_id && (
-                        <button
-                          type="button"
-                          className="text-left text-sm px-2 py-1.5 rounded hover:bg-accent"
-                          onClick={() => {
-                            setEditingMessageId(message.id);
-                            setEditDraft(message.body);
-                            setOpenMenuMessageId(null);
-                          }}
-                        >
-                          Edit
-                        </button>
-                      )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <div />
           </div>
         </article>
       ))}
