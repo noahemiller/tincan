@@ -1250,10 +1250,12 @@ export function App() {
             localStorage.setItem(REFRESH_TOKEN_KEY, refreshed.refreshToken);
             setRefreshToken(refreshed.refreshToken);
           }
-          // Allow the token effect to re-run bootstrap after a successful refresh.
+          // Re-bootstrap immediately after refresh so server/channel state
+          // is guaranteed to hydrate in this same code path.
           didBootstrapRef.current = false;
           setToken(nextToken);
           setUser(refreshed.user);
+          await bootstrap(nextToken);
           return;
         } catch {
           // Fall through to full logout if refresh fails.
