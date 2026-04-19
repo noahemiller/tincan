@@ -571,7 +571,7 @@ export function App() {
     () => servers.find((server) => server.id === selectedServerId) ?? null,
     [servers, selectedServerId],
   );
-  const canCreateChannels = Boolean(selectedServer);
+  const canCreateChannels = Boolean(selectedServerId);
 
   const selectedChannel = useMemo(
     () => channels.find((channel) => channel.id === selectedChannelId) ?? null,
