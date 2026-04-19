@@ -176,6 +176,7 @@ export const api = {
       messages: {
         id: string;
         body: string;
+        reply_to_message_id?: string | null;
         thread_root_message_id?: string | null;
         thread_reply_count?: number;
         author_user_id: string;
@@ -188,9 +189,19 @@ export const api = {
         attachments: { id: string; mime_type: string; original_name: string; public_url: string }[];
       }[];
     }>(`/api/channels/${channelId}/messages`, {}, token),
-  createMessage: (token: string, channelId: string, payload: { body: string; mediaItemIds?: string[] }) =>
+  createMessage: (
+    token: string,
+    channelId: string,
+    payload: { body: string; mediaItemIds?: string[]; replyToMessageId?: string }
+  ) =>
     request<{ message: { id: string } }>(
       `/api/channels/${channelId}/messages`,
+      { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+  toggleMessageReaction: (token: string, messageId: string, payload: { emoji: string }) =>
+    request<{ toggledOn: boolean }>(
+      `/api/messages/${messageId}/reactions/toggle`,
       { method: 'POST', body: JSON.stringify(payload) },
       token
     ),

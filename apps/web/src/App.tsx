@@ -64,6 +64,7 @@ type DmConversation = {
 type Message = {
   id: string;
   body: string;
+  reply_to_message_id?: string | null;
   thread_root_message_id?: string | null;
   thread_reply_count?: number;
   author_user_id: string;
@@ -474,6 +475,12 @@ export function App() {
   const [channelName, setChannelName] = useState("");
   const [dmHandleInput, setDmHandleInput] = useState("");
   const [composer, setComposer] = useState("");
+  const [replyingToMessage, setReplyingToMessage] = useState<{
+    id: string;
+    author_name: string;
+    author_handle: string;
+    body: string;
+  } | null>(null);
   const [pendingMedia, setPendingMedia] = useState<
     {
       id: string;
@@ -1168,6 +1175,10 @@ export function App() {
   }, [selectedChannelId]);
 
   useEffect(() => {
+    setReplyingToMessage(null);
+  }, [leftRailTab, selectedChannelId, selectedDmId]);
+
+  useEffect(() => {
     setChannelSettingsName(selectedChannel?.name ?? "");
   }, [selectedChannel?.id, selectedChannel?.name]);
 
@@ -1602,10 +1613,12 @@ export function App() {
         await api.createMessage(token, selectedChannelId, {
           body,
           mediaItemIds,
+          replyToMessageId: replyingToMessage?.id,
         });
       }
       setComposer("");
       setPendingMedia([]);
+      setReplyingToMessage(null);
       if (isDmMode) {
         await loadDmMessages(token, selectedDmId);
         await loadDmConversations(token);
@@ -1620,6 +1633,34 @@ export function App() {
       );
     } finally {
       setBusy(false);
+    }
+  }
+
+  function onReplyToMessage(messageId: string) {
+    const message = messages.find((entry) => entry.id === messageId);
+    if (!message) {
+      return;
+    }
+    setReplyingToMessage({
+      id: message.id,
+      author_name: message.author_name,
+      author_handle: message.author_handle,
+      body: message.body,
+    });
+  }
+
+  async function onToggleMessageReaction(messageId: string, emoji: string) {
+    if (!token || leftRailTab !== "channels" || !selectedChannelId) {
+      return;
+    }
+
+    try {
+      await api.toggleMessageReaction(token, messageId, { emoji });
+      await loadMessages(token, selectedChannelId);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Failed to toggle reaction",
+      );
     }
   }
 
@@ -3444,6 +3485,12 @@ export function App() {
             messages={messages}
             linkPreviews={linkPreviews}
             onOpenThread={(id) => void onOpenThread(id)}
+            onReplyToMessage={
+              leftRailTab === "channels" ? onReplyToMessage : undefined
+            }
+            onToggleReaction={
+              leftRailTab === "channels" ? onToggleMessageReaction : undefined
+            }
             onOpenLightbox={onOpenLightbox}
             currentUserId={user.id}
             onEditMessage={(messageId, nextBody) =>
@@ -3459,6 +3506,7 @@ export function App() {
               leftRailTab === "channels" &&
               selectedChannelModuleConfig.modules.threads
             }
+            enableStreamReplies={leftRailTab === "channels"}
             onBottomStateChange={(atBottom) => {
               void onMessageListBottomStateChange(atBottom);
             }}
@@ -3560,6 +3608,27 @@ export function App() {
             onSubmit={onSendMessage}
           >
             <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+              {replyingToMessage && leftRailTab === "channels" && (
+                <div className="flex items-start justify-between gap-2 rounded-md border border-border bg-muted/40 px-2.5 py-1.5">
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-foreground">
+                      Replying to {replyingToMessage.author_name}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {replyingToMessage.body}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-muted-foreground"
+                    onClick={() => setReplyingToMessage(null)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
               {pendingMedia.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {pendingMedia.map((media) => (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/ThemeProvider";
@@ -21,6 +21,7 @@ type Attachment = {
 type Message = {
   id: string;
   body: string;
+  reply_to_message_id?: string | null;
   thread_root_message_id?: string | null;
   thread_reply_count?: number;
   author_user_id: string;
@@ -37,6 +38,8 @@ type MessageListProps = {
   messages: Message[];
   linkPreviews: Record<string, LinkPreview>;
   onOpenThread: (rootMessageId: string) => void;
+  onReplyToMessage?: (messageId: string) => void;
+  onToggleReaction?: (messageId: string, emoji: string) => Promise<void>;
   onOpenLightbox: (attachmentId: string) => void;
   currentUserId?: string;
   onEditMessage?: (messageId: string, nextBody: string) => Promise<void>;
@@ -48,12 +51,15 @@ type MessageListProps = {
   enableLinkPreviews?: boolean;
   enableMusicEmbeds?: boolean;
   enableThreads?: boolean;
+  enableStreamReplies?: boolean;
 };
 
 export function MessageList({
   messages,
   linkPreviews,
   onOpenThread,
+  onReplyToMessage,
+  onToggleReaction,
   onOpenLightbox,
   currentUserId,
   onEditMessage,
@@ -65,12 +71,23 @@ export function MessageList({
   enableLinkPreviews = true,
   enableMusicEmbeds = true,
   enableThreads = true,
+  enableStreamReplies = true,
 }: MessageListProps) {
   const { resolvedTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [openMenuMessageId, setOpenMenuMessageId] = useState<string | null>(null);
+  const quickReactions = ["😂", "⭐", "😮", "👍"];
+
+  const messageById = useMemo(() => {
+    const map = new Map<string, Message>();
+    for (const message of messages) {
+      map.set(message.id, message);
+    }
+    return map;
+  }, [messages]);
 
   const reportBottom = useCallback(() => {
     if (!onBottomStateChange) {
@@ -204,14 +221,28 @@ export function MessageList({
               </div>
             </div>
           ) : (
-            <p
+            <div
               className={cn(
-                "text-sm leading-relaxed whitespace-pre-wrap mt-0 mb-0",
+                "flex flex-col gap-1",
                 showAvatars ? "pl-[2.375rem]" : "pl-0",
               )}
             >
-              {message.body}
-            </p>
+              {message.reply_to_message_id &&
+                messageById.get(message.reply_to_message_id) && (
+                  <div className="rounded-md border-l-2 border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
+                    <div className="font-semibold text-foreground/90">
+                      Replying to{" "}
+                      {messageById.get(message.reply_to_message_id)?.author_name}
+                    </div>
+                    <div className="truncate">
+                      {messageById.get(message.reply_to_message_id)?.body}
+                    </div>
+                  </div>
+                )}
+              <p className="text-sm leading-relaxed whitespace-pre-wrap mt-0 mb-0">
+                {message.body}
+              </p>
+            </div>
           )}
 
           {/* Link previews */}
@@ -404,62 +435,180 @@ export function MessageList({
             </div>
           )}
 
-          {/* Reactions */}
-          {message.reactions.length > 0 && (
-            <div
-              className={cn(
-                "mt-2 flex flex-wrap gap-1.5",
-                showAvatars ? "pl-[2.375rem]" : "pl-0",
-              )}
-            >
+          {/* Footer row: reactions (left) + actions (right) */}
+          <div
+            className={cn(
+              "mt-2 flex items-end justify-between gap-2",
+              showAvatars ? "pl-[2.375rem]" : "pl-0",
+            )}
+          >
+            <div className="flex flex-wrap items-center gap-1.5">
               {message.reactions.map((reaction) => (
-                <span
+                <button
                   key={`${message.id}-${reaction.emoji}`}
-                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-border bg-muted"
+                  type="button"
+                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-border bg-muted hover:bg-accent transition-colors"
+                  onClick={() =>
+                    onToggleReaction
+                      ? void onToggleReaction(message.id, reaction.emoji)
+                      : undefined
+                  }
                 >
-                  {reaction.emoji} {reaction.count}
-                </span>
+                  <span>{reaction.emoji}</span>
+                  <span>{reaction.count}</span>
+                </button>
               ))}
-            </div>
-          )}
-
-          {/* Message actions */}
-          {(enableThreads ||
-            (onEditMessage && currentUserId === message.author_user_id)) && (
-            <div
-              className={cn(
-                "mt-2 opacity-0 group-hover:opacity-100 transition-opacity",
-                showAvatars ? "pl-[2.375rem]" : "pl-0",
-              )}
-            >
-              {enableThreads && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs text-muted-foreground"
-                  onClick={() => void onOpenThread(message.id)}
+              {onToggleReaction && (
+                <button
+                  type="button"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-muted text-xs hover:bg-accent transition-colors"
+                  onClick={() => void onToggleReaction(message.id, "🙂")}
+                  aria-label="Add reaction"
                 >
-                  {message.thread_reply_count
-                    ? `${message.thread_reply_count} ${message.thread_reply_count === 1 ? "reply" : "replies"}`
-                    : "Reply in thread"}
-                </Button>
+                  🙂
+                </button>
               )}
-              {onEditMessage && currentUserId === message.author_user_id && (
+            </div>
+
+            <div className="relative flex items-center gap-1.5">
+              {enableStreamReplies && onReplyToMessage && (
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-6 px-2 text-xs text-muted-foreground"
-                  onClick={() => {
-                    setEditingMessageId(message.id);
-                    setEditDraft(message.body);
-                  }}
+                  className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => onReplyToMessage(message.id)}
                 >
-                  Edit
+                  Reply
                 </Button>
               )}
+              {enableThreads && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => void onOpenThread(message.id)}
+                >
+                  {message.thread_reply_count
+                    ? `Thread (${message.thread_reply_count})`
+                    : "Reply in thread"}
+                </Button>
+              )}
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                aria-label="More message actions"
+                onClick={() =>
+                  setOpenMenuMessageId((prev) =>
+                    prev === message.id ? null : message.id,
+                  )
+                }
+              >
+                ⋯
+              </Button>
+
+              {openMenuMessageId === message.id && (
+                <div className="absolute right-0 top-8 z-20 min-w-[220px] rounded-md border border-border bg-popover p-2 shadow-lg">
+                  <div className="flex gap-1 pb-2 border-b border-border">
+                    {quickReactions.map((emoji) => (
+                      <button
+                        key={`${message.id}-quick-${emoji}`}
+                        type="button"
+                        className="h-8 w-8 rounded bg-muted hover:bg-accent text-base"
+                        onClick={() => {
+                          if (onToggleReaction) {
+                            void onToggleReaction(message.id, emoji);
+                          }
+                          setOpenMenuMessageId(null);
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="pt-2 flex flex-col">
+                    <button
+                      type="button"
+                      className="text-left text-sm px-2 py-1.5 rounded hover:bg-accent"
+                      onClick={() => {
+                        if (onToggleReaction) {
+                          void onToggleReaction(message.id, "👍");
+                        }
+                        setOpenMenuMessageId(null);
+                      }}
+                    >
+                      Add Reaction
+                    </button>
+                    <button
+                      type="button"
+                      className="text-left text-sm px-2 py-1.5 rounded hover:bg-accent"
+                      onClick={() => {
+                        setOpenMenuMessageId(null);
+                      }}
+                    >
+                      View Reactions ({message.reactions.length})
+                    </button>
+                    {enableStreamReplies && onReplyToMessage && (
+                      <button
+                        type="button"
+                        className="text-left text-sm px-2 py-1.5 rounded hover:bg-accent"
+                        onClick={() => {
+                          onReplyToMessage(message.id);
+                          setOpenMenuMessageId(null);
+                        }}
+                      >
+                        Reply
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-left text-sm px-2 py-1.5 rounded hover:bg-accent"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(message.body);
+                        } catch {
+                          // ignore clipboard failures
+                        }
+                        setOpenMenuMessageId(null);
+                      }}
+                    >
+                      Forward
+                    </button>
+                    {enableThreads && (
+                      <button
+                        type="button"
+                        className="text-left text-sm px-2 py-1.5 rounded hover:bg-accent"
+                        onClick={() => {
+                          void onOpenThread(message.id);
+                          setOpenMenuMessageId(null);
+                        }}
+                      >
+                        Create Thread
+                      </button>
+                    )}
+                    {onEditMessage &&
+                      currentUserId === message.author_user_id && (
+                        <button
+                          type="button"
+                          className="text-left text-sm px-2 py-1.5 rounded hover:bg-accent"
+                          onClick={() => {
+                            setEditingMessageId(message.id);
+                            setEditDraft(message.body);
+                            setOpenMenuMessageId(null);
+                          }}
+                        >
+                          Edit
+                        </button>
+                      )}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </article>
       ))}
     </div>
