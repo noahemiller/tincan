@@ -3155,7 +3155,10 @@ export function App() {
                   <div className="grid grid-cols-2 gap-3 max-w-[560px]">
                     <div className="flex items-center justify-between gap-2 text-xs">
                       <label htmlFor="channel-color-background-1">Background 1</label>
-                      <div className="flex items-center gap-2">
+                      <label
+                        htmlFor="channel-color-background-1"
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
                         <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
                           {selectedChannelModuleConfig.ui.colorTheme.backgroundBase}
                         </code>
@@ -3175,13 +3178,16 @@ export function App() {
                               },
                             }))
                           }
-                          className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                          className="h-8 w-20 p-1 rounded border border-input bg-background cursor-pointer"
                         />
-                      </div>
+                      </label>
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs">
                       <label htmlFor="channel-color-background-2">Background 2</label>
-                      <div className="flex items-center gap-2">
+                      <label
+                        htmlFor="channel-color-background-2"
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
                         <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
                           {selectedChannelModuleConfig.ui.colorTheme.backgroundAlt}
                         </code>
@@ -3201,13 +3207,16 @@ export function App() {
                               },
                             }))
                           }
-                          className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                          className="h-8 w-20 p-1 rounded border border-input bg-background cursor-pointer"
                         />
-                      </div>
+                      </label>
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs">
                       <label htmlFor="channel-color-main">Main color</label>
-                      <div className="flex items-center gap-2">
+                      <label
+                        htmlFor="channel-color-main"
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
                         <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
                           {selectedChannelModuleConfig.ui.colorTheme.main}
                         </code>
@@ -3227,13 +3236,16 @@ export function App() {
                               },
                             }))
                           }
-                          className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                          className="h-8 w-20 p-1 rounded border border-input bg-background cursor-pointer"
                         />
-                      </div>
+                      </label>
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs">
                       <label htmlFor="channel-color-highlight">Highlight</label>
-                      <div className="flex items-center gap-2">
+                      <label
+                        htmlFor="channel-color-highlight"
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
                         <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
                           {selectedChannelModuleConfig.ui.colorTheme.highlight}
                         </code>
@@ -3253,13 +3265,16 @@ export function App() {
                               },
                             }))
                           }
-                          className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                          className="h-8 w-20 p-1 rounded border border-input bg-background cursor-pointer"
                         />
-                      </div>
+                      </label>
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs">
                       <label htmlFor="channel-color-text">Text</label>
-                      <div className="flex items-center gap-2">
+                      <label
+                        htmlFor="channel-color-text"
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
                         <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
                           {selectedChannelModuleConfig.ui.colorTheme.text}
                         </code>
@@ -3279,13 +3294,16 @@ export function App() {
                               },
                             }))
                           }
-                          className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                          className="h-8 w-20 p-1 rounded border border-input bg-background cursor-pointer"
                         />
-                      </div>
+                      </label>
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs">
                       <label htmlFor="channel-color-border">Border</label>
-                      <div className="flex items-center gap-2">
+                      <label
+                        htmlFor="channel-color-border"
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
                         <code className="text-[10px] text-muted-foreground min-w-[62px] text-right">
                           {selectedChannelModuleConfig.ui.colorTheme.border}
                         </code>
@@ -3305,9 +3323,9 @@ export function App() {
                               },
                             }))
                           }
-                          className="h-7 w-16 p-1 rounded border border-input bg-background cursor-pointer"
+                          className="h-8 w-20 p-1 rounded border border-input bg-background cursor-pointer"
                         />
-                      </div>
+                      </label>
                     </div>
                   </div>
                   <div>
