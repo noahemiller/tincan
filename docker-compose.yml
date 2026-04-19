@@ -40,7 +40,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-tincan}:${POSTGRES_PASSWORD:-tincan}@postgres:5432/${POSTGRES_DB:-tincan}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-super-secret-change-me}
-      CORS_ORIGIN: http://localhost:${WEB_PORT:-5173}
+      CORS_ORIGIN: http://${PUBLIC_HOST:-localhost}:${WEB_PORT:-5173},http://127.0.0.1:${WEB_PORT:-5173}
+      UPLOADS_BASE_URL: http://${PUBLIC_HOST:-localhost}:${API_PORT:-4000}/uploads
     ports:
       - '${API_PORT:-4000}:4000'
     volumes:
@@ -59,7 +60,7 @@ services:
     command: >
       sh -lc "corepack enable && pnpm --filter @tincan/web dev --host 0.0.0.0 --port 5173"
     environment:
-      VITE_API_URL: http://localhost:${API_PORT:-4000}
+      VITE_API_URL: http://${PUBLIC_HOST:-localhost}:${API_PORT:-4000}
     ports:
       - '${WEB_PORT:-5173}:5173'
     volumes:

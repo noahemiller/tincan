@@ -8,6 +8,7 @@
 
 1. Copy env template:
    - `cp .env.example .env`
+   - For remote hosting, set `PUBLIC_HOST` to your server IP or domain
 2. Install deps once on host:
    - `corepack pnpm install`
 3. Start stack:

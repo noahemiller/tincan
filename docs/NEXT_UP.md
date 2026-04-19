@@ -6,6 +6,7 @@
 2. Add library taxonomy editing and validated-vs-suggested metadata states
 3. Add search query highlighting/snippet extraction in web results
 4. Add search faceting (date range, author, channel)
+5. Add install/deploy flow for self-hosting (guided bootstrap + production compose + host/domain setup)
 
 ## Recently completed
 
