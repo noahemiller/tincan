@@ -42,6 +42,20 @@ const createMessageSchema = z
     }
   });
 
+const updateMessageSchema = z
+  .object({
+    body: z.string().max(4000)
+  })
+  .transform((payload) => ({ ...payload, body: payload.body.trim() }))
+  .superRefine((payload, context) => {
+    if (!payload.body) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Message body is required.'
+      });
+    }
+  });
+
 const markReadSchema = z.object({
   lastReadMessageId: z.string().uuid().optional()
 });
@@ -1673,6 +1687,53 @@ export async function registerAppRoutes(app: FastifyInstance) {
     });
 
     return reply.code(201).send({ message: result.rows[0] });
+  });
+
+  app.patch('/api/messages/:messageId', { preHandler: authGuard }, async (request, reply) => {
+    const params = request.params as { messageId: string };
+    const parsed = updateMessageSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const userId = request.authUser!.userId;
+
+    const messageResult = await pool.query(
+      `
+      SELECT id, server_id, channel_id, author_user_id
+      FROM messages
+      WHERE id = $1
+      `,
+      [params.messageId]
+    );
+
+    if (messageResult.rowCount === 0) {
+      return reply.code(404).send({ error: 'Message not found' });
+    }
+
+    const message = messageResult.rows[0];
+    const isMember = await requireServerMembership(userId, message.server_id);
+
+    if (!isMember) {
+      return reply.code(403).send({ error: 'Not a server member' });
+    }
+
+    if (message.author_user_id !== userId) {
+      return reply.code(403).send({ error: 'Only the original author can edit this message' });
+    }
+
+    const updated = await pool.query(
+      `
+      UPDATE messages
+      SET body = $2, edited_at = NOW()
+      WHERE id = $1
+      RETURNING id, channel_id, author_user_id, body, reply_to_message_id, thread_root_message_id, edited_at, created_at
+      `,
+      [params.messageId, parsed.data.body]
+    );
+
+    return { message: updated.rows[0] };
   });
 
   app.get('/api/messages/:messageId/thread/messages', { preHandler: authGuard }, async (request, reply) => {

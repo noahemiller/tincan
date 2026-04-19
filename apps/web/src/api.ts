@@ -178,9 +178,11 @@ export const api = {
         body: string;
         thread_root_message_id?: string | null;
         thread_reply_count?: number;
+        author_user_id: string;
         author_handle: string;
         author_name: string;
         author_avatar_url?: string | null;
+        edited_at?: string | null;
         created_at: string;
         reactions: { emoji: string; count: number }[];
         attachments: { id: string; mime_type: string; original_name: string; public_url: string }[];
@@ -190,6 +192,12 @@ export const api = {
     request<{ message: { id: string } }>(
       `/api/channels/${channelId}/messages`,
       { method: 'POST', body: JSON.stringify(payload) },
+      token
+    ),
+  updateMessage: (token: string, messageId: string, payload: { body: string }) =>
+    request<{ message: { id: string; body: string; edited_at?: string | null } }>(
+      `/api/messages/${messageId}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
       token
     ),
   uploadToChannel: (token: string, channelId: string, file: File) => {

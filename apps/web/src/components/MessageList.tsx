@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/ThemeProvider";
@@ -23,9 +23,11 @@ type Message = {
   body: string;
   thread_root_message_id?: string | null;
   thread_reply_count?: number;
+  author_user_id: string;
   author_handle: string;
   author_name: string;
   author_avatar_url?: string | null;
+  edited_at?: string | null;
   created_at: string;
   reactions: { emoji: string; count: number }[];
   attachments: Attachment[];
@@ -36,6 +38,8 @@ type MessageListProps = {
   linkPreviews: Record<string, LinkPreview>;
   onOpenThread: (rootMessageId: string) => void;
   onOpenLightbox: (attachmentId: string) => void;
+  currentUserId?: string;
+  onEditMessage?: (messageId: string, nextBody: string) => Promise<void>;
   onBottomStateChange?: (atBottom: boolean) => void;
   showAvatars?: boolean;
   density?: "compact" | "comfortable";
@@ -51,6 +55,8 @@ export function MessageList({
   linkPreviews,
   onOpenThread,
   onOpenLightbox,
+  currentUserId,
+  onEditMessage,
   onBottomStateChange,
   showAvatars = true,
   density = "comfortable",
@@ -62,6 +68,9 @@ export function MessageList({
 }: MessageListProps) {
   const { resolvedTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const reportBottom = useCallback(() => {
     if (!onBottomStateChange) {
@@ -136,18 +145,74 @@ export function MessageList({
               <time className="text-xs text-muted-foreground">
                 {new Date(message.created_at).toLocaleString()}
               </time>
+              {message.edited_at && (
+                <span className="text-[11px] text-muted-foreground">
+                  edited
+                </span>
+              )}
             </div>
           </div>
 
           {/* Body */}
-          <p
-            className={cn(
-              "text-sm leading-relaxed whitespace-pre-wrap mt-0 mb-0",
-              showAvatars ? "pl-[2.375rem]" : "pl-0",
-            )}
-          >
-            {message.body}
-          </p>
+          {editingMessageId === message.id ? (
+            <div
+              className={cn(
+                "mt-0 mb-0 flex flex-col gap-1.5",
+                showAvatars ? "pl-[2.375rem]" : "pl-0",
+              )}
+            >
+              <textarea
+                className="w-full min-h-[70px] rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground"
+                value={editDraft}
+                onChange={(event) => setEditDraft(event.target.value)}
+              />
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  disabled={savingEdit || !editDraft.trim()}
+                  onClick={async () => {
+                    if (!onEditMessage || !editDraft.trim()) {
+                      return;
+                    }
+                    setSavingEdit(true);
+                    try {
+                      await onEditMessage(message.id, editDraft);
+                      setEditingMessageId(null);
+                      setEditDraft("");
+                    } finally {
+                      setSavingEdit(false);
+                    }
+                  }}
+                >
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-muted-foreground"
+                  disabled={savingEdit}
+                  onClick={() => {
+                    setEditingMessageId(null);
+                    setEditDraft("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p
+              className={cn(
+                "text-sm leading-relaxed whitespace-pre-wrap mt-0 mb-0",
+                showAvatars ? "pl-[2.375rem]" : "pl-0",
+              )}
+            >
+              {message.body}
+            </p>
+          )}
 
           {/* Link previews */}
           {enableLinkPreviews && extractUrls(message.body).length > 0 && (
@@ -358,24 +423,41 @@ export function MessageList({
             </div>
           )}
 
-          {/* Thread action */}
-          {enableThreads && (
+          {/* Message actions */}
+          {(enableThreads ||
+            (onEditMessage && currentUserId === message.author_user_id)) && (
             <div
               className={cn(
                 "mt-2 opacity-0 group-hover:opacity-100 transition-opacity",
                 showAvatars ? "pl-[2.375rem]" : "pl-0",
               )}
             >
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 px-2 text-xs text-muted-foreground"
-                onClick={() => void onOpenThread(message.id)}
-              >
-                {message.thread_reply_count
-                  ? `${message.thread_reply_count} ${message.thread_reply_count === 1 ? "reply" : "replies"}`
-                  : "Reply in thread"}
-              </Button>
+              {enableThreads && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-muted-foreground"
+                  onClick={() => void onOpenThread(message.id)}
+                >
+                  {message.thread_reply_count
+                    ? `${message.thread_reply_count} ${message.thread_reply_count === 1 ? "reply" : "replies"}`
+                    : "Reply in thread"}
+                </Button>
+              )}
+              {onEditMessage && currentUserId === message.author_user_id && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-muted-foreground"
+                  onClick={() => {
+                    setEditingMessageId(message.id);
+                    setEditDraft(message.body);
+                  }}
+                >
+                  Edit
+                </Button>
+              )}
             </div>
           )}
         </article>

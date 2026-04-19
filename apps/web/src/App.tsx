@@ -55,9 +55,11 @@ type Message = {
   body: string;
   thread_root_message_id?: string | null;
   thread_reply_count?: number;
+  author_user_id: string;
   author_handle: string;
   author_name: string;
   author_avatar_url?: string | null;
+  edited_at?: string | null;
   created_at: string;
   reactions: { emoji: string; count: number }[];
   attachments: {
@@ -1547,6 +1549,23 @@ export function App() {
     }
   }
 
+  async function onEditMessage(messageId: string, nextBody: string) {
+    if (!token || !selectedChannelId) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      await api.updateMessage(token, messageId, { body: nextBody.trim() });
+      await loadMessages(token, selectedChannelId);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Failed to edit message");
+      throw cause;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function getLibraryThumbnail(item: LibraryItem) {
     if (item.item_type === "media") {
       return item.media_url ?? null;
@@ -2977,6 +2996,10 @@ export function App() {
             linkPreviews={linkPreviews}
             onOpenThread={(id) => void onOpenThread(id)}
             onOpenLightbox={onOpenLightbox}
+            currentUserId={user.id}
+            onEditMessage={(messageId, nextBody) =>
+              onEditMessage(messageId, nextBody)
+            }
             showAvatars={selectedChannelModuleConfig.ui.showAvatars}
             density={selectedChannelModuleConfig.ui.messageDensity}
             cornerRadiusPx={selectedChannelModuleConfig.ui.cornerRadiusPx}
