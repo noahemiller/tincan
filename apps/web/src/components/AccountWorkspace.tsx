@@ -41,6 +41,7 @@ export type AccountWorkspaceProps = {
   profileForm: ProfileForm;
   setProfileForm: React.Dispatch<React.SetStateAction<ProfileForm>>;
   onSaveProfile: (e: FormEvent<HTMLFormElement>) => void;
+  onUploadAvatarFile: (file: File) => Promise<void>;
   profilePhotos: LibraryItem[];
   servers: Server[];
   busy: boolean;
@@ -84,6 +85,7 @@ export function AccountWorkspace({
   profileForm,
   setProfileForm,
   onSaveProfile,
+  onUploadAvatarFile,
   profilePhotos,
   servers,
   busy,
@@ -173,6 +175,25 @@ export function AccountWorkspace({
                   placeholder="https://…"
                   className="text-sm"
                 />
+              </label>
+              <label className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground font-medium">
+                Avatar image
+                <Input
+                  type="file"
+                  accept="image/*"
+                  className="text-sm"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file) {
+                      return;
+                    }
+                    void onUploadAvatarFile(file);
+                  }}
+                />
+                <span className="text-[11px] text-muted-foreground">
+                  Uploads image and sets it as avatar automatically.
+                </span>
               </label>
               <label className="col-span-2 flex flex-col gap-1 text-xs text-muted-foreground font-medium">
                 Bio

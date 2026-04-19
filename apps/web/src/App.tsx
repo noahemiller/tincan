@@ -2307,6 +2307,34 @@ export function App() {
     }
   }
 
+  async function onUploadAvatarFile(file: File) {
+    if (!token) {
+      return;
+    }
+    try {
+      setBusy(true);
+      const uploaded = await api.uploadProfilePhoto(token, file);
+      const avatarUrl = uploaded.photo.public_url;
+      const result = await api.updateMe(token, {
+        avatarUrl,
+        avatarThumbUrl: avatarUrl,
+      });
+      setUser(result.user);
+      setProfileForm((prev) => ({
+        ...prev,
+        avatarUrl,
+        avatarThumbUrl: avatarUrl,
+      }));
+      setError("");
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Failed to upload avatar",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onChangePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token) {
@@ -3186,6 +3214,7 @@ export function App() {
             profileForm={profileForm}
             setProfileForm={setProfileForm}
             onSaveProfile={onSaveProfile}
+            onUploadAvatarFile={onUploadAvatarFile}
             profilePhotos={profilePhotos}
             servers={servers}
             busy={busy}
