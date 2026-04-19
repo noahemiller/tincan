@@ -22,6 +22,10 @@ const createChannelSchema = z.object({
   topic: z.string().max(200).optional()
 });
 
+const updateChannelSchema = z.object({
+  name: z.string().min(1).max(80)
+});
+
 const createMessageSchema = z
   .object({
     body: z.string().max(4000),
@@ -739,6 +743,51 @@ export async function registerAppRoutes(app: FastifyInstance) {
       );
 
       return reply.code(201).send({ channel: result.rows[0] });
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(409).send({ error: 'Channel slug already exists for this server' });
+    }
+  });
+
+  app.put('/api/channels/:channelId', { preHandler: authGuard }, async (request, reply) => {
+    const params = request.params as { channelId: string };
+    const parsed = updateChannelSchema.safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const userId = request.authUser!.userId;
+    const channel = await loadChannel(params.channelId);
+
+    if (!channel) {
+      return reply.code(404).send({ error: 'Channel not found' });
+    }
+
+    const isMember = await requireServerMembership(userId, channel.server_id);
+
+    if (!isMember) {
+      return reply.code(403).send({ error: 'Not a server member' });
+    }
+
+    const channelSlug = slugify(parsed.data.name);
+
+    try {
+      const result = await pool.query(
+        `
+        UPDATE channels
+        SET name = $2, slug = $3
+        WHERE id = $1
+        RETURNING id, server_id, name, slug, topic, created_at
+        `,
+        [params.channelId, parsed.data.name, channelSlug]
+      );
+
+      if (result.rowCount === 0) {
+        return reply.code(404).send({ error: 'Channel not found' });
+      }
+
+      return { channel: result.rows[0] };
     } catch (error) {
       request.log.error(error);
       return reply.code(409).send({ error: 'Channel slug already exists for this server' });

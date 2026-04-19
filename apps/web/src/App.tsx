@@ -441,6 +441,7 @@ export function App() {
   const [channelMode, setChannelMode] = useState<
     "hidden" | "passive" | "active"
   >("passive");
+  const [channelSettingsName, setChannelSettingsName] = useState("");
   const [channelSnoozeHours, setChannelSnoozeHours] = useState("0");
   const [channelSettingsOpen, setChannelSettingsOpen] = useState(false);
   const [centerPane, setCenterPane] = useState<
@@ -1013,6 +1014,10 @@ export function App() {
   }, [selectedChannelId]);
 
   useEffect(() => {
+    setChannelSettingsName(selectedChannel?.name ?? "");
+  }, [selectedChannel?.id, selectedChannel?.name]);
+
+  useEffect(() => {
     if (!user) {
       return;
     }
@@ -1491,6 +1496,14 @@ export function App() {
 
     try {
       setBusy(true);
+      if (
+        channelSettingsName.trim() &&
+        channelSettingsName.trim() !== (selectedChannel?.name ?? "")
+      ) {
+        await api.updateChannel(token, selectedChannelId, {
+          name: channelSettingsName.trim(),
+        });
+      }
       await api.updateChannelPreference(token, selectedChannelId, {
         mode: channelMode,
         snoozedUntil,
@@ -2464,9 +2477,18 @@ export function App() {
             <div className="channel-settings-content">
               <form
                 autoComplete="off"
-                className="grid grid-cols-[1fr_1fr_auto] gap-3 px-3 py-2.5 bg-muted/50 items-end"
+                className="grid grid-cols-[1.2fr_1fr_1fr_auto] gap-3 px-3 py-2.5 bg-muted/50 items-end"
                 onSubmit={onSaveChannelPreference}
               >
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
+                  Channel name
+                  <Input
+                    value={channelSettingsName}
+                    onChange={(event) => setChannelSettingsName(event.target.value)}
+                    className="h-8"
+                    placeholder="Channel name"
+                  />
+                </label>
                 <label className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
                   Mode
                   <select

@@ -165,6 +165,12 @@ export const api = {
       { method: 'POST', body: JSON.stringify(payload) },
       token
     ),
+  updateChannel: (token: string, channelId: string, payload: { name: string }) =>
+    request<{ channel: { id: string; name: string; slug: string; topic?: string | null } }>(
+      `/api/channels/${channelId}`,
+      { method: 'PUT', body: JSON.stringify(payload) },
+      token
+    ),
   messages: (token: string, channelId: string) =>
     request<{
       messages: {
