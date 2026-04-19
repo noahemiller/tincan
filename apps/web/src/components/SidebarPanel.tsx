@@ -42,6 +42,7 @@ type SidebarPanelProps = {
   channelName: string;
   setChannelName: (v: string) => void;
   onCreateChannel: (e: FormEvent<HTMLFormElement>) => void;
+  canCreateChannels: boolean;
 };
 
 /* Shared styles for nav buttons */
@@ -88,6 +89,7 @@ export function SidebarPanel({
   channelName,
   setChannelName,
   onCreateChannel,
+  canCreateChannels,
 }: SidebarPanelProps) {
   return (
     <aside className="sidebar panel flex flex-col gap-3 px-2 py-3 border-r border-border bg-card h-full overflow-y-auto">
@@ -246,8 +248,20 @@ export function SidebarPanel({
 
           <div className="border-t border-border pt-3">
             <form autoComplete="off" onSubmit={onCreateChannel} className="flex flex-col gap-1.5">
-              <Input placeholder="New channel" value={channelName} onChange={(e) => setChannelName(e.target.value)} />
-              <Button type="submit" size="sm">Add channel</Button>
+              <Input
+                placeholder={canCreateChannels ? 'New channel' : 'Admin role required'}
+                value={channelName}
+                onChange={(e) => setChannelName(e.target.value)}
+                disabled={!canCreateChannels}
+              />
+              <Button type="submit" size="sm" disabled={!canCreateChannels}>
+                Add channel
+              </Button>
+              {!canCreateChannels && (
+                <p className="text-[11px] text-muted-foreground px-0.5">
+                  Channel creation is limited to owner/admin for this server.
+                </p>
+              )}
             </form>
           </div>
         </>

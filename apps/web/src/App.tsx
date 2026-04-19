@@ -571,6 +571,8 @@ export function App() {
     () => servers.find((server) => server.id === selectedServerId) ?? null,
     [servers, selectedServerId],
   );
+  const canCreateChannels =
+    selectedServer?.role === "owner" || selectedServer?.role === "admin";
 
   const selectedChannel = useMemo(
     () => channels.find((channel) => channel.id === selectedChannelId) ?? null,
@@ -2330,6 +2332,7 @@ export function App() {
         channelName={channelName}
         setChannelName={setChannelName}
         onCreateChannel={onCreateChannel}
+        canCreateChannels={canCreateChannels}
       />
 
       <section className="flex flex-col overflow-hidden border-r border-border bg-background">
