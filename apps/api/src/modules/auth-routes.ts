@@ -364,8 +364,13 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       [userId, tokenHash, expiresAt.toISOString()]
     );
 
-    // Private/self-hosted mode: return token directly so users can recover without email infra.
-    return { ok: true, resetToken: rawToken, expiresAt: expiresAt.toISOString() };
+    // Security default: do not expose reset token in API responses.
+    // Optional self-host shortcut can be explicitly enabled via env.
+    if (config.authExposeResetToken) {
+      return { ok: true, resetToken: rawToken, expiresAt: expiresAt.toISOString() };
+    }
+
+    return { ok: true };
   });
 
   app.post('/api/auth/reset-password', async (request, reply) => {

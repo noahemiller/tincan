@@ -1415,7 +1415,13 @@ export function App() {
       });
       setResetTokenPreview(result.resetToken ?? "");
       setResetTokenExpiresAt(result.expiresAt ?? "");
-      setError("");
+      if (result.resetToken) {
+        setError("");
+      } else {
+        setError(
+          "If that account exists, reset instructions were issued. Ask an admin for reset delivery."
+        );
+      }
     } catch (cause) {
       setError(
         cause instanceof Error
